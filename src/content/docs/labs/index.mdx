@@ -1,0 +1,81 @@
+---
+title: "Hands-on Labs"
+description: "Guided labs with step-by-step instructions — each one builds on the last."
+---
+
+import { CardGrid, LinkCard, Aside, Badge } from '@astrojs/starlight/components';
+
+<Aside type="tip" title="How Labs Work">
+Each lab starts with a **scenario** — a real problem you need to solve. Every command is explained with **why** you are running it, not just what it does. At the end, a **reflection** connects what you did to the bigger picture.
+</Aside>
+
+## Docker Labs (Days 1–2)
+
+<CardGrid>
+  <LinkCard
+    title="Lab 1: Running Containers"
+    href="/labs/lab1-running-containers/"
+    description="Pull images, run containers, inspect them, and understand what Docker is doing under the hood."
+  />
+  <LinkCard
+    title="Lab 2: Building Docker Images"
+    href="/labs/lab2-building-images/"
+    description="Write your first Dockerfile, build an image, and see how layers work."
+  />
+  <LinkCard
+    title="Lab 3: Volumes and Networking"
+    href="/labs/lab3-volumes-networking/"
+    description="Persist database data across container restarts and connect containers on a shared network."
+  />
+  <LinkCard
+    title="Lab 4: Containerize the Backend"
+    href="/labs/lab4-containerize-backend/"
+    description="The mini project — containerize the Node.js API, Redis, and PostgreSQL as a complete stack."
+  />
+</CardGrid>
+
+## Kubernetes Labs (Days 3–5)
+
+<CardGrid>
+  <LinkCard
+    title="Lab 5: Install a Kubernetes Cluster"
+    href="/labs/lab5-install-k8s-cluster/"
+    description="Set up a real 3-node cluster with kubeadm — one control plane and two workers."
+  />
+  <LinkCard
+    title="Lab 6: Deploying Applications"
+    href="/labs/lab6-deploying-apps/"
+    description="Create Deployments, scale pods, and observe how Kubernetes maintains desired state."
+  />
+  <LinkCard
+    title="Lab 7: Services and Networking"
+    href="/labs/lab7-services-networking/"
+    description="Expose your application with ClusterIP and NodePort services, and test service discovery."
+  />
+  <LinkCard
+    title="Lab 8: ConfigMaps and Secrets"
+    href="/labs/lab8-configmaps-secrets/"
+    description="Externalize database URLs and credentials — inject them into pods at runtime."
+  />
+  <LinkCard
+    title="Lab 9: Autoscaling and Monitoring"
+    href="/labs/lab9-autoscaling-monitoring/"
+    description="Install the Metrics Server, create an HPA, generate load, and watch Kubernetes scale automatically."
+  />
+</CardGrid>
+
+## Lab Prerequisites
+
+All labs assume you have completed the **previous day's material**. Each lab page lists its specific prerequisites at the top.
+
+| Lab | Requires | Day |
+|-----|----------|-----|
+| Lab 1 | Docker installed | Day 1 |
+| Lab 2 | Lab 1 completed | Day 2 |
+| Lab 3 | Lab 2 completed | Day 2 |
+| Lab 4 | Labs 1–3 completed | Day 2 |
+| Lab 5 | Docker + VMs or cloud instances | Day 3 |
+| Lab 6 | Lab 5 completed (working cluster) | Day 4 |
+| Lab 7 | Lab 6 completed | Day 4 |
+| Lab 8 | Lab 7 completed | Day 4 |
+| Lab 9 | Lab 8 completed | Day 5 |

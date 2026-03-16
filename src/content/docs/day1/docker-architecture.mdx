@@ -1,0 +1,292 @@
+---
+title: "Docker Architecture"
+description: "How Docker is designed — the client, daemon, and registry model."
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## The Problem
+
+You understand that containers are isolated processes using namespaces and cgroups. But you would not want to manually configure namespaces and cgroups every time you run an application — that would be like writing assembly code instead of using a programming language.
+
+You need a **tool** that makes creating, running, and managing containers simple. That tool is **Docker**.
+
+But Docker is not a single program. It is a **system** with multiple components, each with a specific role. Understanding this architecture helps you debug problems, understand error messages, and know where things can go wrong.
+
+## The Architecture
+
+Docker follows a **client-server model**. When you type `docker run nginx`, you are using the Docker **client** — but the work is done by the Docker **daemon** running in the background.
+
+```d2
+direction: right
+
+You: You (Developer) {
+  shape: person
+}
+
+CLI: Docker CLI (Client) {
+  shape: rectangle
+  style.bold: true
+}
+
+Daemon: Docker Daemon (dockerd) {
+  shape: rectangle
+  style.bold: true
+  
+  ImageMgmt: Image Management
+  ContainerMgmt: Container Management
+  NetworkMgmt: Network Management
+  VolumeMgmt: Volume Management
+}
+
+Registry: Docker Registry {
+  shape: cloud
+  
+  DockerHub: Docker Hub
+  Private: Private Registry
+}
+
+ContainerRuntime: containerd + runc {
+  shape: rectangle
+}
+
+RunningContainers: Running Containers {
+  C1: nginx
+  C2: redis
+  C3: postgres
+}
+
+You -> CLI: docker run nginx
+CLI -> Daemon: REST API (Unix socket) {
+  style.animated: true
+}
+Daemon -> Registry: Pull image if not local {
+  style.animated: true
+}
+Daemon -> ContainerRuntime: Create container {
+  style.animated: true
+}
+ContainerRuntime -> RunningContainers: Start process {
+  style.animated: true
+}
+```
+
+### Why a Client-Server Model?
+
+Docker could have been a single program — run the command, start the container, done. So why split it into a client and a server?
+
+**The daemon runs continuously** — it manages the lifecycle of all containers, not just the one you started. It tracks which containers are running, monitors their health, and cleans up after them.
+
+**The client is stateless** — it sends a request and gets a response. This means:
+- You can use the CLI from a different machine (by configuring the Docker host)
+- GUIs like Docker Desktop can talk to the same daemon
+- CI/CD systems can send commands to a remote Docker daemon
+- Multiple clients can interact with the same daemon simultaneously
+
+## The Components
+
+### Docker CLI (Client)
+
+The command-line tool you interact with. When you run:
+
+```bash frame="terminal" title="Your terminal"
+docker run -d -p 8080:80 nginx
+```
+
+The CLI translates this into an API call and sends it to the daemon over a Unix socket (`/var/run/docker.sock`).
+
+<Aside type="note" title="Why a Unix Socket?">
+Docker uses a Unix socket (not a TCP port) by default for security. A Unix socket is a file — access is controlled by file permissions. If Docker listened on a TCP port, anyone on the network could potentially control your containers.
+</Aside>
+
+### Docker Daemon (dockerd)
+
+The background service that does the real work. It:
+- Receives API requests from the client
+- Manages images — pulling, building, storing, and tagging
+- Manages containers — creating, starting, stopping, and removing
+- Manages networks — creating bridges, assigning IPs
+- Manages volumes — creating and mounting storage
+
+The daemon runs as root because it needs to create namespaces and cgroups (kernel operations).
+
+### Container Runtime (containerd + runc)
+
+The daemon does not create containers directly. It delegates to **containerd**, which manages the container lifecycle, and **runc**, which actually creates the isolated process using kernel namespaces and cgroups.
+
+```d2
+direction: down
+
+dockerd: Docker Daemon (dockerd) {
+  style.bold: true
+}
+
+containerd: containerd {
+  style.bold: true
+}
+
+runc: runc
+
+KernelOps: Linux Kernel {
+  NS: Namespaces
+  CG: Cgroups
+}
+
+Container: Running Container {
+  Process: Your Application
+}
+
+dockerd -> containerd: Manage lifecycle {
+  style.animated: true
+}
+containerd -> runc: Create container {
+  style.animated: true
+}
+runc -> KernelOps: Set up namespaces + cgroups {
+  style.animated: true
+}
+KernelOps -> Container: Isolated process {
+  style.animated: true
+}
+```
+
+**Why this layering?** Because each layer can be replaced independently. Kubernetes, for example, talks to containerd directly — it does not need the Docker daemon at all. This is why "Kubernetes dropped Docker support" was misleading news — Kubernetes dropped the Docker daemon, but still uses containerd (which was always doing the real work).
+
+### Docker Registry
+
+A registry stores Docker images. **Docker Hub** is the default public registry — it hosts millions of images (nginx, redis, postgres, node, python, etc.).
+
+When you run `docker run nginx`:
+1. The daemon checks if the `nginx` image exists locally
+2. If not, it pulls it from Docker Hub
+3. It creates a container from the image
+4. It starts the container
+
+You can also run **private registries** for your organization's images — so your proprietary application images are not public.
+
+## What Happens When You Type `docker run`
+
+Let's trace the full flow:
+
+```bash frame="terminal" title="Your terminal"
+docker run -d -p 8080:80 --name web nginx
+```
+
+```d2
+direction: down
+
+Step1: "1. CLI parses command" {
+  shape: rectangle
+}
+
+Step2: "2. CLI sends POST to daemon" {
+  shape: rectangle
+}
+
+Step3: "3. Daemon checks local images" {
+  shape: rectangle
+}
+
+Step4: "4. Pulls nginx from Docker Hub" {
+  shape: rectangle
+}
+
+Step5: "5. containerd creates container" {
+  shape: rectangle
+}
+
+Step6: "6. runc sets up namespaces/cgroups" {
+  shape: rectangle
+}
+
+Step7: "7. nginx process starts (PID 1)" {
+  shape: rectangle
+}
+
+Step8: "8. Port 8080 mapped to container port 80" {
+  shape: rectangle
+}
+
+Step1 -> Step2 {
+  style.animated: true
+}
+Step2 -> Step3 {
+  style.animated: true
+}
+Step3 -> Step4: Image not found locally {
+  style.animated: true
+}
+Step4 -> Step5 {
+  style.animated: true
+}
+Step5 -> Step6 {
+  style.animated: true
+}
+Step6 -> Step7 {
+  style.animated: true
+}
+Step7 -> Step8 {
+  style.animated: true
+}
+```
+
+<Aside type="tip" title="Understanding Error Messages">
+Knowing this architecture helps you debug. If you see "Cannot connect to the Docker daemon" — the daemon is not running. If you see "permission denied" — your user cannot access the Unix socket. If you see "image not found" — the registry does not have that image or you have a typo in the name.
+</Aside>
+
+## Installing Docker
+
+<Tabs syncKey="os">
+  <TabItem label="Linux">
+    ```bash frame="terminal" title="Ubuntu / Debian"
+    sudo apt update
+    sudo apt install -y docker.io
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    sudo usermod -aG docker $USER
+    ```
+
+    <Aside type="caution">
+    After adding yourself to the `docker` group, you need to **log out and back in** for the group change to take effect. Otherwise, you will still get "permission denied" errors.
+    </Aside>
+  </TabItem>
+  <TabItem label="macOS">
+    ```bash frame="terminal" title="macOS"
+    brew install --cask docker
+    ```
+
+    Then open **Docker Desktop** from Applications. Docker on macOS runs a lightweight Linux VM behind the scenes — because Docker containers need a Linux kernel, and macOS does not have one.
+  </TabItem>
+  <TabItem label="Windows">
+    ```powershell frame="terminal" title="Windows PowerShell"
+    winget install Docker.DockerDesktop
+    ```
+
+    After installation, open **Docker Desktop**. Ensure **WSL 2 backend** is enabled in Settings. Like macOS, Docker on Windows runs containers inside a Linux VM (WSL 2).
+  </TabItem>
+</Tabs>
+
+Verify Docker is running:
+
+```bash frame="terminal" title="All platforms"
+docker version
+```
+
+You should see output showing both the **Client** and **Server** versions — confirming the client-server architecture.
+
+## How This Connects to Our Application
+
+When we containerize our microservice application in Day 2:
+- The **Docker CLI** is what we will use to build images and run containers
+- The **Docker daemon** will manage our API, Redis, and PostgreSQL containers
+- **Docker Hub** is where we will pull the official Redis and PostgreSQL images from
+- Our custom API image will be built locally and stored by the daemon
+
+## Key Decisions Made
+
+| Decision | Why |
+|----------|-----|
+| Client-server architecture | Allows the daemon to manage containers independently. Multiple clients (CLI, GUI, CI/CD) can talk to the same daemon. |
+| Unix socket for communication | Secure by default — only local users with socket permissions can control Docker. TCP would expose control to the network. |
+| Layered runtime (daemon → containerd → runc) | Each layer is replaceable. Kubernetes uses containerd directly. OCI standards mean runc can be swapped for other runtimes. |
+| Docker Hub as default registry | Provides millions of pre-built images so you do not have to build everything from scratch. |

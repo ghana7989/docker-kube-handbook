@@ -1,0 +1,81 @@
+---
+title: "Day 5 — Scaling and Operations"
+description: "Production-grade Kubernetes — deployment strategies, autoscaling, and monitoring."
+---
+
+import { CardGrid, LinkCard, Aside } from '@astrojs/starlight/components';
+
+<Aside type="tip" title="The Big Question">
+Your application is deployed and serving traffic. Then Monday morning hits — traffic triples. Or worse, you push a bad update and users start seeing errors. **Can your system handle spikes automatically? Can you roll back a bad release without downtime?**
+</Aside>
+
+## What You Will Learn Today
+
+Day 5 answers: **how do we make our Kubernetes deployment production-ready?**
+
+By the end of today, you will understand:
+
+- **Why** different deployment strategies exist — rolling, blue-green, canary — and when to use each
+- **Why** resource requests and limits matter — and what happens when you skip them
+- **How** the Horizontal Pod Autoscaler works — scaling your app based on real metrics
+- **Why** a visual dashboard helps — and how to install the Kubernetes Dashboard
+
+## The Story So Far
+
+Over four days, you have containerized a microservice application, built a Kubernetes cluster, and deployed your services into it. Traffic is flowing. But production is not just about "it runs."
+
+Production means:
+- **Zero-downtime updates** — deploy new versions without dropping requests
+- **Automatic scaling** — handle traffic spikes without manual intervention
+- **Resource protection** — prevent one service from starving others
+- **Observability** — see what is happening inside your cluster
+
+Today, you make your deployment **production-grade**.
+
+## Today's Topics
+
+<CardGrid>
+  <LinkCard
+    title="Deployment Strategies"
+    href="/day5/deployment-strategies/"
+    description="Rolling updates, blue-green, canary — each solves a different risk. Which one fits your situation?"
+  />
+  <LinkCard
+    title="Resource Requests and Limits"
+    href="/day5/resource-management/"
+    description="What happens when a pod uses all the memory on a node? Resource management prevents catastrophe."
+  />
+  <LinkCard
+    title="Horizontal Pod Autoscaler"
+    href="/day5/autoscaling/"
+    description="Let Kubernetes add pods when CPU spikes and remove them when traffic drops."
+  />
+  <LinkCard
+    title="Kubernetes Dashboard"
+    href="/day5/dashboard/"
+    description="A visual interface for monitoring your cluster — see pods, deployments, and metrics at a glance."
+  />
+  <LinkCard
+    title="Course Wrap-Up"
+    href="/day5/course-wrapup/"
+    description="Review what you built, the decisions you made, and where to go next."
+  />
+</CardGrid>
+
+## Related Lab
+
+<LinkCard
+  title="Lab 9: Autoscaling and Monitoring"
+  href="/labs/lab9-autoscaling-monitoring/"
+  description="Configure the Metrics Server, create an HPA, generate load, and watch pods scale automatically."
+/>
+
+## By End of Day 5
+
+You should be able to:
+
+- Choose the right deployment strategy for your update risk level
+- Set resource requests and limits to protect your cluster
+- Configure autoscaling that responds to real traffic patterns
+- Use the Kubernetes Dashboard to monitor workloads
+- Explain the **complete journey** — from code on a laptop to a scalable, self-healing production deployment

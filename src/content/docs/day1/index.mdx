@@ -1,0 +1,107 @@
+---
+title: "Day 1 — Containers and Docker Fundamentals"
+description: "Understand why containers exist and learn to run services with Docker."
+---
+
+import { Card, CardGrid, LinkCard, Aside, Badge } from '@astrojs/starlight/components';
+
+<Aside type="tip" title="The Big Question">
+Your application works on your laptop. Your teammate pulls the same code, runs it, and it breaks. A missing library, a different OS version, a conflicting port. **Why does this keep happening?**
+</Aside>
+
+## What You Will Learn Today
+
+Day 1 answers a fundamental question: **how do we make software run the same way everywhere?**
+
+By the end of today, you will understand:
+
+- **Why** containers were invented and what problem they solve
+- **How** containers differ from virtual machines — and why containers won
+- **How** Docker is architected — the client, daemon, and registry model
+- **What** images and containers are — blueprints vs running instances
+- **How** containers move through their lifecycle — creation to removal
+
+## The Story So Far
+
+You have a microservice application:
+
+- A **React frontend** that serves the UI
+- A **Node.js API** that handles business logic
+- A **Redis cache** for fast lookups
+- A **PostgreSQL database** for persistent storage
+
+It works on your machine. Today, we start the journey of making it work **on any machine**.
+
+```d2
+direction: right
+
+Frontend: React Frontend {
+  shape: rectangle
+}
+
+API: Node.js API {
+  shape: rectangle
+}
+
+Redis: Redis Cache {
+  shape: cylinder
+}
+
+DB: PostgreSQL {
+  shape: cylinder
+}
+
+Frontend -> API: REST calls { style.animated: true }
+API -> Redis: Cache { style.animated: true }
+API -> DB: Queries { style.animated: true }
+```
+
+This is the application we will containerize (Day 2), deploy to Kubernetes (Day 4), and scale to handle production traffic (Day 5).
+
+## Today's Topics
+
+<CardGrid>
+  <LinkCard
+    title="Why Containers Exist"
+    href="/day1/why-containers/"
+    description="The 'works on my machine' problem and why it drove the industry to containers."
+  />
+  <LinkCard
+    title="Containers vs Virtual Machines"
+    href="/day1/containers-vs-vms/"
+    description="Both solve isolation. Why did containers become the default for application deployment?"
+  />
+  <LinkCard
+    title="Docker Architecture"
+    href="/day1/docker-architecture/"
+    description="The client-server model — why Docker chose this design and what each piece does."
+  />
+  <LinkCard
+    title="Images and Containers"
+    href="/day1/images-and-containers/"
+    description="The blueprint vs the running instance — and why this separation matters."
+  />
+  <LinkCard
+    title="Container Lifecycle"
+    href="/day1/container-lifecycle/"
+    description="How containers are created, started, stopped, and removed — and what happens at each step."
+  />
+</CardGrid>
+
+## Related Lab
+
+<LinkCard
+  title="Lab 1: Running Containers"
+  href="/labs/lab1-running-containers/"
+  description="Hands-on: pull images, run containers, inspect them, and understand what is happening under the hood."
+/>
+
+## By End of Day 1
+
+You should be able to:
+
+- Explain **why** containers exist to a colleague
+- Run any Docker container from Docker Hub
+- Inspect a running container — its logs, processes, network, and filesystem
+- Understand what happens when you type `docker run`
+- See how this connects to deploying our microservice application

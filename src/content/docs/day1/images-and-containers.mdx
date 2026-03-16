@@ -1,0 +1,226 @@
+---
+title: "Docker Images and Containers"
+description: "The relationship between images and containers — blueprints vs running instances."
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## The Problem
+
+You want to run three copies of your API service — maybe for testing, maybe for load distribution. If a container is just an isolated process, how do you ensure all three copies start with the **exact same filesystem, libraries, and configuration**?
+
+You need a **template** — a read-only snapshot of everything your application needs. You create the template once and then launch as many identical containers from it as you want.
+
+That template is called an **image**. The running instance is called a **container**.
+
+## Images: The Blueprint
+
+A Docker image is a **read-only package** containing:
+- A minimal filesystem (base OS libraries)
+- The application runtime (Node.js, Python, etc.)
+- Application dependencies (npm packages, pip packages)
+- Your application code
+- Default configuration (environment variables, startup command)
+
+Think of it like a **class** in programming. The class defines the structure and behavior. You can create many **objects** (instances) from the same class.
+
+```d2
+direction: right
+
+Image: nginx Image (Read-Only) {
+  style.bold: true
+  
+  Layer1: Base OS (Alpine Linux)
+  Layer2: nginx binary
+  Layer3: Default config
+  Layer4: Default HTML
+  
+  Layer1 -> Layer2
+  Layer2 -> Layer3
+  Layer3 -> Layer4
+}
+
+C1: Container 1 {
+  Process1: nginx (PID 1)
+  RW1: Writable layer
+}
+
+C2: Container 2 {
+  Process2: nginx (PID 1)
+  RW2: Writable layer
+}
+
+C3: Container 3 {
+  Process3: nginx (PID 1)
+  RW3: Writable layer
+}
+
+Image -> C1: docker run {
+  style.animated: true
+}
+Image -> C2: docker run {
+  style.animated: true
+}
+Image -> C3: docker run {
+  style.animated: true
+}
+```
+
+### Where Do Images Come From?
+
+Images come from two sources:
+
+1. **Registries** — Docker Hub hosts thousands of pre-built images. When you run `docker run nginx`, Docker pulls the nginx image from Docker Hub.
+
+2. **Dockerfiles** — You build your own images by writing a Dockerfile (we will learn this in Day 2). The Dockerfile describes the steps to construct the image.
+
+### Image Tags
+
+Images are identified by a **name and tag**:
+
+```
+nginx:1.25-alpine
+│     │    │
+│     │    └── variant (Alpine-based, smaller)
+│     └── version number
+└── image name
+```
+
+If you omit the tag, Docker uses `:latest` — which is not necessarily the newest version, just whichever image was tagged as "latest" by the publisher.
+
+<Aside type="caution" title="Avoid :latest in Production">
+Using `:latest` means your deployment might pull a different image version each time. Always pin a specific version (e.g., `nginx:1.25-alpine`) so your deployments are reproducible.
+</Aside>
+
+## Containers: The Running Instance
+
+A container is a **running (or stopped) instance** of an image. When you create a container from an image:
+
+1. Docker takes the image's read-only filesystem
+2. Adds a **writable layer** on top (called the container layer)
+3. Creates namespaces for isolation (PID, network, mount)
+4. Sets up cgroups for resource limits
+5. Starts the process defined in the image's startup command
+
+The writable layer is where any changes happen — new files, modified files, log output. But this layer is **ephemeral**. When the container is removed, the writable layer is deleted and all changes are lost.
+
+```d2
+direction: down
+
+ImageLayers: Image Layers (Read-Only) {
+  L1: Layer 1 - Base OS
+  L2: Layer 2 - Runtime
+  L3: Layer 3 - Dependencies
+  L4: Layer 4 - App Code
+  
+  L1 -> L2
+  L2 -> L3
+  L3 -> L4
+}
+
+ContainerLayer: Container Layer (Read-Write) {
+  Logs: Log files written at runtime
+  TempFiles: Temp files
+  Modified: Modified configs
+}
+
+ImageLayers -> ContainerLayer: Writable layer added on top {
+  style.animated: true
+}
+```
+
+<Aside type="note" title="Key Insight">
+This is why containers are fast to create. Docker does not copy the entire image for each container — all containers from the same image **share the read-only layers**. Only the thin writable layer is unique to each container.
+</Aside>
+
+## Working with Images and Containers
+
+### Listing Images
+
+```bash frame="terminal"
+docker images
+```
+
+This shows all images stored locally. Each image has a repository name, tag, image ID, creation date, and size.
+
+### Pulling an Image
+
+```bash frame="terminal"
+docker pull redis:7-alpine
+```
+
+This downloads the Redis 7 image (Alpine variant) from Docker Hub without running it. Useful when you want to pre-download images before going offline or before a demo.
+
+### Running a Container from an Image
+
+```bash frame="terminal"
+docker run -d --name my-redis redis:7-alpine
+```
+
+This creates a container named `my-redis` from the Redis image and runs it in the background (`-d` for detached).
+
+### Listing Containers
+
+```bash frame="terminal"
+docker ps
+```
+
+Shows running containers. Add `-a` to include stopped containers:
+
+```bash frame="terminal"
+docker ps -a
+```
+
+### The Image-Container Relationship
+
+```d2
+direction: right
+
+DockerHub: Docker Hub {
+  shape: cloud
+}
+
+LocalImages: Local Image Store {
+  Redis: redis:7-alpine
+  Nginx: nginx:1.25
+  Node: node:18-alpine
+}
+
+RunningContainers: Running Containers {
+  RC1: my-redis (from redis:7-alpine)
+  RC2: web (from nginx:1.25)
+  RC3: api (from node:18-alpine)
+}
+
+StoppedContainers: Stopped Containers {
+  SC1: old-redis (from redis:7-alpine)
+}
+
+DockerHub -> LocalImages: docker pull {
+  style.animated: true
+}
+LocalImages -> RunningContainers: docker run {
+  style.animated: true
+}
+RunningContainers -> StoppedContainers: docker stop
+```
+
+Multiple containers can run from the same image. Stopping a container does not remove it — it is still there, with its writable layer intact, ready to be started again.
+
+## How This Connects to Our Application
+
+In our microservice stack:
+- **Redis** and **PostgreSQL** will use official images from Docker Hub (`redis:7-alpine`, `postgres:16-alpine`)
+- **The Node.js API** will use a custom image that we build ourselves in Day 2
+- **The React frontend** will also be a custom image
+
+We pull the official images (someone else built and maintains them), and we build our own for the custom code. This is the power of the image ecosystem — you only build what is unique to your application.
+
+## Key Decisions Made
+
+| Decision | Why |
+|----------|-----|
+| Images are read-only | Guarantees every container from the same image starts identically. No drift between instances. |
+| Containers add a writable layer | Applications need to write logs, temp files, and runtime data. The writable layer allows this without modifying the image. |
+| Writable layer is ephemeral | Forces developers to treat containers as disposable. Persistent data must use volumes (Day 2). |
+| Pin image versions (not :latest) | Ensures reproducible deployments. `:latest` is a moving target that can change without warning. |

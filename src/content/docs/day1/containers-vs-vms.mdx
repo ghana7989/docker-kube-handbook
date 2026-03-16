@@ -1,0 +1,215 @@
+---
+title: "Containers vs Virtual Machines"
+description: "How containers differ from VMs and why containers became the default for application deployment."
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## The Problem
+
+You need to run multiple applications on a single physical server — but they must not interfere with each other. Application A needs Python 3.8, Application B needs Python 3.11. Both need port 8080. Both need different versions of OpenSSL.
+
+How do you isolate them?
+
+Two technologies solve this problem: **virtual machines** and **containers**. Both provide isolation, but they work at fundamentally different levels — and that difference determines when to use each.
+
+## Virtual Machines: Full Hardware Virtualization
+
+A virtual machine runs a **complete operating system** on top of a hypervisor. The hypervisor (VMware, VirtualBox, KVM) sits between the hardware and the VMs, giving each VM the illusion of having its own hardware.
+
+```d2
+direction: down
+
+PhysicalServer: Physical Server {
+  HW: Hardware (CPU, RAM, Disk, NIC)
+  HostOS: Host Operating System
+  HV: Hypervisor (KVM / VMware)
+  
+  VM1: Virtual Machine 1 {
+    GOS1: Ubuntu 22.04 (Full OS)
+    Libs1: System Libraries
+    Rt1: Python 3.8
+    App1: Application A
+  }
+  
+  VM2: Virtual Machine 2 {
+    GOS2: Alpine Linux (Full OS)
+    Libs2: System Libraries
+    Rt2: Python 3.11
+    App2: Application B
+  }
+  
+  VM3: Virtual Machine 3 {
+    GOS3: CentOS 9 (Full OS)
+    Libs3: System Libraries
+    Rt3: Node.js 18
+    App3: Application C
+  }
+  
+  HW -> HostOS
+  HostOS -> HV
+  HV -> VM1
+  HV -> VM2
+  HV -> VM3
+}
+```
+
+Each VM has:
+- Its own **kernel** — a complete copy of Linux (or Windows)
+- Its own **system libraries** — glibc, OpenSSL, etc.
+- Its own **runtime and dependencies**
+- Its own **virtual hardware** — CPU cores, RAM, disk, network interface
+
+### Why VMs Are Heavy
+
+A minimal Ubuntu server VM uses **500 MB to 2 GB of disk** just for the operating system. Add the runtime and dependencies, and a typical VM image is **2–10 GB**.
+
+Starting a VM means **booting an entire operating system** — loading the kernel, starting system services, initializing hardware drivers. This takes **30 seconds to several minutes**.
+
+If you run 10 VMs on a server with 64 GB of RAM, a significant portion of that RAM is consumed by 10 copies of the operating system — memory that could be running your applications instead.
+
+## Containers: Process-Level Isolation
+
+Containers take a radically different approach. Instead of virtualizing the hardware, they share the host's kernel and use **namespaces and cgroups** to isolate processes.
+
+```d2
+direction: down
+
+ContainerHost: Container Host {
+  HW: Hardware (CPU, RAM, Disk, NIC)
+  OS: Host Operating System
+  K: Shared Linux Kernel
+  CR: Container Runtime (Docker)
+  
+  C1: Container 1 (80 MB) {
+    Libs1: Minimal libs
+    Rt1: Python 3.8
+    App1: Application A
+  }
+  
+  C2: Container 2 (65 MB) {
+    Libs2: Minimal libs
+    Rt2: Python 3.11
+    App2: Application B
+  }
+  
+  C3: Container 3 (120 MB) {
+    Libs3: Minimal libs
+    Rt3: Node.js 18
+    App3: Application C
+  }
+  
+  HW -> OS
+  OS -> K
+  K -> CR
+  CR -> C1
+  CR -> C2
+  CR -> C3
+}
+```
+
+Each container has:
+- Its own **filesystem** — a minimal set of libraries (no full OS)
+- Its own **process space** — it only sees its own processes
+- Its own **network interface** — its own IP address and ports
+- **Shared kernel** — the host's kernel, not a copy
+
+### Why Containers Are Fast and Light
+
+A minimal container image (Alpine-based) is **5–80 MB**. Even a full Node.js container with application code is typically **100–200 MB**.
+
+Starting a container means **starting a process** — not booting an OS. This takes **milliseconds**, not minutes.
+
+Running 10 containers uses almost no overhead beyond the application processes themselves — because there are no 10 duplicate operating systems consuming memory.
+
+## Side-by-Side Comparison
+
+| Aspect | Virtual Machine | Container |
+|--------|----------------|-----------|
+| **Isolation level** | Hardware virtualization | Process-level (namespaces) |
+| **OS** | Each VM has its own kernel | Shared host kernel |
+| **Image size** | 2–10 GB | 50–500 MB |
+| **Startup time** | 30 seconds – minutes | Milliseconds |
+| **Memory overhead** | High (full OS per VM) | Minimal (shared kernel) |
+| **Density** | 5–20 VMs per server | 50–200+ containers per server |
+| **Security isolation** | Strong (hardware boundary) | Good (kernel boundary) |
+| **Portability** | Portable but heavy | Highly portable and lightweight |
+
+## When to Use Which
+
+<Aside type="tip" title="Decision Guide">
+**Use containers** when you need to deploy applications quickly, run many services on one machine, or ship consistent environments across dev/staging/production.
+
+**Use VMs** when you need strong security isolation between tenants, need to run different operating systems (Linux and Windows on the same host), or when regulatory requirements mandate hardware-level isolation.
+</Aside>
+
+### Containers Win for Application Deployment
+
+For deploying microservices — which is what we are building in this course — containers are the clear winner:
+
+- Our API, Redis, and PostgreSQL can each run in lightweight containers
+- We can run all four services on a single developer laptop without running out of memory
+- We can start the entire stack in seconds, not minutes
+- The container images are small enough to push to a registry and pull on any server
+
+### VMs Still Matter
+
+VMs are not obsolete. In fact, **containers often run inside VMs** in production. Cloud providers like AWS, GCP, and Azure give you virtual machines (EC2, GCE, Azure VMs) — and you run containers inside those VMs. The VM provides the hardware isolation between tenants; containers provide the application isolation within a tenant.
+
+```d2
+direction: down
+
+Cloud: Cloud Provider {
+  PM: Physical Server
+  
+  CustomerA_VM: Customer A VM {
+    OS_A: Linux
+    Docker_A: Docker
+    
+    C1: API Container
+    C2: Redis Container
+    C3: DB Container
+    
+    Docker_A -> C1
+    Docker_A -> C2
+    Docker_A -> C3
+  }
+  
+  CustomerB_VM: Customer B VM {
+    OS_B: Linux
+    Docker_B: Docker
+    
+    C4: Web Container
+    C5: Worker Container
+    
+    Docker_B -> C4
+    Docker_B -> C5
+  }
+  
+  PM -> CustomerA_VM: Hardware isolation {
+    style.animated: true
+  }
+  PM -> CustomerB_VM: Hardware isolation {
+    style.animated: true
+  }
+}
+```
+
+## How This Connects to Our Application
+
+Our microservice system (Frontend, API, Redis, PostgreSQL) is a perfect use case for containers:
+
+- Each service is an **independent process** with its own runtime
+- We need to run them **together on a developer's laptop** (VMs would exhaust memory)
+- We need the **same environment** in dev, staging, and production
+- We need to **start and stop quickly** during development
+
+In Day 2, we will package each of these services into its own container image. For now, the key insight is: **containers give us VM-like isolation at a fraction of the cost**.
+
+## Key Decisions Made
+
+| Decision | Why |
+|----------|-----|
+| Containers for our microservices | Lightweight, fast startup, portable, and efficient. We can run 4+ services on a laptop without exhausting resources. |
+| VMs for infrastructure isolation | Cloud providers still use VMs to isolate customers. Containers run inside VMs in production — both technologies coexist. |
+| Shared kernel is acceptable | Our services do not need different operating systems. They all run on Linux. Sharing the kernel is safe and efficient for this use case. |

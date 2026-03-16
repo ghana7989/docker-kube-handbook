@@ -1,0 +1,252 @@
+---
+title: "Image Layers and Build Caching"
+description: "Why Docker images are layered and how caching makes builds fast."
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## The Problem
+
+You build your image. It takes 2 minutes — downloading the base image, installing npm packages, copying code. You change one line of code in `server.js`. You rebuild. It takes 2 minutes again.
+
+**Why?** If Docker rebuilt everything from scratch on every change, development would be painfully slow. And if 10 containers run the same image, would Docker really store 10 copies of Node.js?
+
+Docker solves both problems with **layers and caching**.
+
+## What Are Layers?
+
+Every instruction in a Dockerfile creates a **layer** — a read-only snapshot of the filesystem changes made by that instruction.
+
+```dockerfile title="Dockerfile"
+FROM node:18-alpine        # Layer 1: Base OS + Node.js
+WORKDIR /app               # Layer 2: Create /app directory
+COPY package*.json ./      # Layer 3: Add package files
+RUN npm install            # Layer 4: Add node_modules
+COPY . .                   # Layer 5: Add application code
+CMD ["npm", "start"]       # Metadata (not a layer)
+```
+
+```d2
+direction: down
+
+L1: "Layer 1: node:18-alpine (50 MB)" {
+  style.bold: true
+}
+L2: "Layer 2: WORKDIR /app (0 KB)" 
+L3: "Layer 3: package*.json (2 KB)"
+L4: "Layer 4: node_modules (45 MB)" {
+  style.bold: true
+}
+L5: "Layer 5: Application code (500 KB)"
+
+L1 -> L2
+L2 -> L3
+L3 -> L4
+L4 -> L5
+
+FinalImage: "Final Image: ~96 MB" {
+  style.bold: true
+}
+
+L5 -> FinalImage {
+  style.animated: true
+}
+```
+
+Each layer only contains the **differences** from the layer below it. Layer 4 does not contain Node.js — that is in Layer 1. Layer 4 only contains the `node_modules` folder that `npm install` created.
+
+## How Caching Works
+
+Docker caches each layer. When you rebuild, Docker checks each instruction from top to bottom:
+
+1. Has this instruction changed?
+2. Have the files it references changed?
+
+If nothing changed, Docker **reuses the cached layer** instead of executing the instruction again. This is called a **cache hit**.
+
+```d2
+direction: down
+
+FirstBuild: First Build (2 min) {
+  B1: "FROM node:18-alpine" {
+    style.bold: true
+  }
+  B2: "COPY package*.json"
+  B3: "RUN npm install (90s)"  {
+    style.bold: true
+  }
+  B4: "COPY . ."
+  
+  B1 -> B2
+  B2 -> B3
+  B3 -> B4
+}
+
+RebuildCodeChange: "Rebuild after code change (3s)" {
+  C1: "FROM node:18-alpine ✓ cached"
+  C2: "COPY package*.json ✓ cached"
+  C3: "RUN npm install ✓ cached" {
+    style.bold: true
+  }
+  C4: "COPY . . ✗ changed" {
+    style.bold: true
+  }
+  
+  C1 -> C2
+  C2 -> C3
+  C3 -> C4
+}
+
+FirstBuild -> RebuildCodeChange: Change server.js {
+  style.animated: true
+}
+```
+
+**When you only change your application code:**
+- Layers 1–4 are cached (including the expensive `npm install`)
+- Only Layer 5 is rebuilt
+- Build time drops from **2 minutes to 3 seconds**
+
+### Cache Invalidation
+
+When a layer changes, **all subsequent layers are invalidated**. This is why instruction order matters.
+
+<Aside type="caution" title="Bad Order Destroys Cache">
+If you wrote `COPY . .` BEFORE `RUN npm install`, any code change would invalidate the npm install cache. Every rebuild would reinstall all packages from scratch — even if `package.json` did not change.
+</Aside>
+
+**Bad order** — npm install runs on every code change:
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY . .                 # Code change invalidates this layer
+RUN npm install          # And this layer too (cache miss!)
+CMD ["npm", "start"]
+```
+
+**Good order** — npm install is cached unless dependencies change:
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./    # Only changes when dependencies change
+RUN npm install          # Cached unless package.json changed
+COPY . .                 # Only this rebuilds on code changes
+CMD ["npm", "start"]
+```
+
+## Layer Sharing
+
+Multiple containers from the same image **share all read-only layers**. Docker stores each layer only once on disk.
+
+```d2
+direction: down
+
+SharedLayers: Shared Image Layers (stored once) {
+  SL1: "Layer 1: node:18-alpine"
+  SL2: "Layer 2: node_modules"
+  SL3: "Layer 3: app code"
+  
+  SL1 -> SL2
+  SL2 -> SL3
+}
+
+Container1: Container 1 {
+  RW1: Writable layer (logs, temp files)
+}
+
+Container2: Container 2 {
+  RW2: Writable layer (logs, temp files)
+}
+
+Container3: Container 3 {
+  RW3: Writable layer (logs, temp files)
+}
+
+SharedLayers -> Container1 {
+  style.animated: true
+}
+SharedLayers -> Container2 {
+  style.animated: true
+}
+SharedLayers -> Container3 {
+  style.animated: true
+}
+```
+
+If your image is 96 MB and you run 10 containers, Docker does **not** use 960 MB. It uses 96 MB for the shared layers plus a few MB for each container's writable layer.
+
+This also applies across images. If two different images both use `node:18-alpine` as their base, the base layer is stored **once** and shared between them.
+
+## Inspecting Layers
+
+```bash frame="terminal" title="See the layers of an image"
+docker history my-api:1.0
+```
+
+This shows each layer, its size, and the instruction that created it. Large layers (like `RUN npm install`) are where optimization efforts should focus.
+
+```bash frame="terminal" title="Check total image size"
+docker images my-api
+```
+
+## Optimization Tips
+
+### 1. Order Instructions by Change Frequency
+
+Put things that change **rarely** at the top and things that change **frequently** at the bottom:
+
+```dockerfile
+FROM node:18-alpine          # Almost never changes
+WORKDIR /app                  # Never changes
+COPY package*.json ./         # Changes when deps change
+RUN npm install               # Cached most of the time
+COPY . .                      # Changes on every code edit
+CMD ["npm", "start"]          # Never changes
+```
+
+### 2. Combine RUN Commands
+
+Each `RUN` creates a layer. Combining related commands into one `RUN` reduces layers and image size:
+
+```dockerfile title="Bad — 3 layers, apt cache left in image"
+RUN apt-get update
+RUN apt-get install -y curl
+RUN rm -rf /var/lib/apt/lists/*
+```
+
+```dockerfile title="Good — 1 layer, apt cache cleaned"
+RUN apt-get update && \
+    apt-get install -y curl && \
+    rm -rf /var/lib/apt/lists/*
+```
+
+**Why?** Even though the third command removes the apt cache, it only removes it in that layer. The cache still exists in the previous layers. Combining them into one `RUN` ensures the cache never appears in the final image.
+
+### 3. Use .dockerignore
+
+Prevent unnecessary files from entering the build context:
+
+```text title=".dockerignore"
+node_modules
+.git
+*.md
+.env
+.DS_Store
+```
+
+## How This Connects to Our Application
+
+When developing our API:
+- We will change code constantly — the layer order ensures this does **not** trigger npm install
+- When we add a new npm package, only then does the install layer rebuild
+- In production, our Redis and PostgreSQL images share base layers, reducing total disk usage
+- In Kubernetes (Day 4), fast image pulls matter — smaller layers mean faster deployments
+
+## Key Decisions Made
+
+| Decision | Why |
+|----------|-----|
+| Layer architecture | Enables caching (fast rebuilds) and sharing (efficient storage). |
+| Copy dependencies before code | The single most important Dockerfile optimization. Saves minutes per build. |
+| Combine RUN commands | Prevents intermediate artifacts (like apt cache) from persisting in layers. |
+| .dockerignore | Keeps build context small for fast builds. Prevents secrets (.env) from entering images. |

@@ -1,0 +1,261 @@
+---
+title: "Docker Volumes"
+description: "Why containers lose data when removed and how volumes solve this."
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## The Problem
+
+You start a PostgreSQL container. You create a database, add tables, insert data. Everything works perfectly.
+
+Then the container crashes. You remove it and start a new one. **All your data is gone.** The database is empty. Every table, every row — vanished.
+
+Why? Because the data was stored in the container's **writable layer**, and that layer is deleted when the container is removed.
+
+For databases, caches, logs, and any persistent data, this is a disaster. You need data that **survives container restarts and removals**.
+
+## Why Containers Lose Data
+
+Remember the container filesystem:
+
+```d2
+direction: down
+
+ImageLayers: Image Layers (Read-Only) {
+  BaseOS: Alpine Linux
+  PGBinary: PostgreSQL binary
+  DefaultConfig: Default config
+}
+
+WritableLayer: Container Writable Layer {
+  style.bold: true
+  
+  DataDir: "/var/lib/postgresql/data"
+  Logs: "Log files"
+  RuntimeConfig: "Runtime config changes"
+}
+
+ImageLayers -> WritableLayer: Added on top
+
+DeathNote: "docker rm" {
+  shape: rectangle
+  style.bold: true
+}
+
+WritableLayer -> DeathNote: DELETED {
+  style.animated: true
+}
+```
+
+The writable layer is **ephemeral by design**. This is actually a good thing for application containers — it means every new container starts clean, with no leftover state from a previous run. But for data that must persist, you need a different mechanism.
+
+## What Is a Volume?
+
+A volume is a **directory on the host machine** that is mounted into the container. Data written to this directory is stored on the host, not in the container's writable layer.
+
+When the container is removed, the volume **stays on the host**. When you start a new container and mount the same volume, the data is still there.
+
+```d2
+direction: right
+
+HostMachine: Host Machine {
+  HostFS: Host Filesystem
+  VolumeDir: "/var/lib/docker/volumes/pgdata" {
+    style.bold: true
+    Tables: Your tables
+    Indexes: Your indexes
+    WAL: Write-ahead log
+  }
+}
+
+Container1: PostgreSQL Container {
+  PGProcess: PostgreSQL process
+  MountPoint: "/var/lib/postgresql/data"
+}
+
+VolumeDir -> MountPoint: Mounted {
+  style.animated: true
+}
+PGProcess -> MountPoint: Reads/writes data {
+  style.animated: true
+}
+```
+
+## Types of Volumes
+
+Docker supports three ways to persist data:
+
+### 1. Named Volumes (Recommended)
+
+Docker manages the storage location. You just give the volume a name:
+
+```bash frame="terminal"
+docker volume create pgdata
+docker run -d --name postgres \
+  -v pgdata:/var/lib/postgresql/data \
+  -e POSTGRES_PASSWORD=secret \
+  postgres:16-alpine
+```
+
+**Why named volumes?** Docker handles the storage path, permissions, and cleanup. They work across all platforms (Linux, macOS, Windows). They are the simplest and most portable option.
+
+### 2. Bind Mounts
+
+You specify an exact path on the host machine:
+
+```bash frame="terminal"
+docker run -d --name postgres \
+  -v /home/user/pgdata:/var/lib/postgresql/data \
+  -e POSTGRES_PASSWORD=secret \
+  postgres:16-alpine
+```
+
+**When to use bind mounts?** For development — when you want to edit code on your host and see changes immediately in the container:
+
+```bash frame="terminal" title="Mount your source code for live development"
+docker run -d --name api \
+  -v $(pwd)/src:/app/src \
+  -p 3000:3000 \
+  my-api:dev
+```
+
+Changes to files in `./src` on your machine are instantly visible inside the container — no rebuild needed.
+
+<Aside type="caution" title="Bind Mount Gotchas">
+Bind mounts depend on the host's directory structure. A path like `/home/user/data` does not exist on macOS or Windows. Named volumes work everywhere. Use bind mounts for development and named volumes for anything that needs to be portable.
+</Aside>
+
+### 3. tmpfs Mounts
+
+Stored in memory, not on disk. Data disappears when the container stops.
+
+```bash frame="terminal"
+docker run -d --name api \
+  --tmpfs /app/tmp \
+  my-api:1.0
+```
+
+**When to use tmpfs?** For sensitive data that should never touch disk (temporary credentials, session tokens) or for fast I/O (caches, temp files).
+
+## Volume Lifecycle
+
+```d2
+direction: down
+
+CreateVol: "docker volume create pgdata" {
+  shape: rectangle
+}
+
+Mount1: "Container 1 (running)" {
+  PG1: PostgreSQL
+  Data1: pgdata mounted
+}
+
+Stop1: "Container 1 removed" {
+  shape: rectangle
+}
+
+VolumeStill: "pgdata volume still exists" {
+  style.bold: true
+  AllData: All your data intact
+}
+
+Mount2: "Container 2 (new)" {
+  PG2: PostgreSQL
+  Data2: pgdata mounted
+}
+
+CreateVol -> Mount1 {
+  style.animated: true
+}
+Mount1 -> Stop1: docker rm postgres
+Stop1 -> VolumeStill: Volume survives!
+VolumeStill -> Mount2: "docker run -v pgdata:..." {
+  style.animated: true
+}
+```
+
+Volumes persist until you explicitly remove them:
+
+```bash frame="terminal" title="List all volumes"
+docker volume ls
+```
+
+```bash frame="terminal" title="Inspect a volume"
+docker volume inspect pgdata
+```
+
+```bash frame="terminal" title="Remove a specific volume"
+docker volume rm pgdata
+```
+
+```bash frame="terminal" title="Remove all unused volumes"
+docker volume prune
+```
+
+<Aside type="danger" title="Volume Removal Is Permanent">
+`docker volume rm` deletes the data permanently. There is no undo. In production, always have backups before removing volumes.
+</Aside>
+
+## Practical Example: PostgreSQL with Persistent Data
+
+```bash frame="terminal" title="Create a volume and run PostgreSQL"
+docker volume create pgdata
+docker run -d \
+  --name postgres \
+  -v pgdata:/var/lib/postgresql/data \
+  -e POSTGRES_PASSWORD=secret \
+  -e POSTGRES_DB=myapp \
+  -p 5432:5432 \
+  postgres:16-alpine
+```
+
+```bash frame="terminal" title="Create a table and insert data"
+docker exec -it postgres psql -U postgres -d myapp -c \
+  "CREATE TABLE users (id SERIAL, name TEXT); INSERT INTO users (name) VALUES ('Alice');"
+```
+
+```bash frame="terminal" title="Verify the data"
+docker exec -it postgres psql -U postgres -d myapp -c "SELECT * FROM users;"
+```
+
+Now remove the container and start a new one with the same volume:
+
+```bash frame="terminal" title="Remove container, keep volume"
+docker rm -f postgres
+```
+
+```bash frame="terminal" title="Start a new container with the same volume"
+docker run -d \
+  --name postgres \
+  -v pgdata:/var/lib/postgresql/data \
+  -e POSTGRES_PASSWORD=secret \
+  -p 5432:5432 \
+  postgres:16-alpine
+```
+
+```bash frame="terminal" title="Data is still there!"
+docker exec -it postgres psql -U postgres -d myapp -c "SELECT * FROM users;"
+```
+
+Alice is still there. The data survived the container removal because it was stored in the volume, not the container.
+
+## How This Connects to Our Application
+
+In our microservice stack:
+- **PostgreSQL** needs a named volume for database files — data must survive restarts
+- **Redis** can optionally use a volume for persistence (RDB/AOF files), though losing cache data is usually acceptable
+- **The Node.js API** does not need a volume — it is stateless (it gets data from PostgreSQL)
+- **During development**, we will use bind mounts to edit API code and see changes without rebuilding
+
+In Kubernetes (Day 4), the concept is the same — **PersistentVolumes** are the Kubernetes equivalent of Docker volumes.
+
+## Key Decisions Made
+
+| Decision | Why |
+|----------|-----|
+| Named volumes for databases | Portable, Docker-managed, survive container removals. The standard choice for persistent data. |
+| Bind mounts for development | Edit code on host, see changes in container instantly. Faster development cycle. |
+| tmpfs for sensitive data | Data stays in memory, never written to disk. Automatically cleaned when container stops. |
+| Containers are stateless by default | Forces you to explicitly decide what data persists. Prevents accidental state coupling. |

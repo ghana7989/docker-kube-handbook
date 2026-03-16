@@ -1,0 +1,46 @@
+---
+title: "Troubleshooting"
+description: "Common problems and their solutions — with explanations of WHY each error happens."
+---
+
+import { CardGrid, LinkCard, Aside } from '@astrojs/starlight/components';
+
+<Aside type="note" title="How Troubleshooting Pages Work">
+Each issue follows a consistent pattern: **Symptom** (what you see) → **Root Cause** (why it happens) → **Diagnosis** (how to confirm) → **Fix** (how to resolve) → **Prevention** (how to avoid it next time).
+</Aside>
+
+## Docker Troubleshooting
+
+Problems you may encounter when running and building Docker containers.
+
+<LinkCard
+  title="Docker Issues"
+  href="/troubleshooting/docker-issues/"
+  description="Daemon not starting, permission denied, port conflicts, image pull failures, containers exiting immediately."
+/>
+
+**Common symptoms covered:**
+- `Cannot connect to the Docker daemon`
+- `permission denied while trying to connect to the Docker daemon socket`
+- `Bind for 0.0.0.0:8080 failed: port is already allocated`
+- `Error response from daemon: pull access denied`
+- Container exits immediately after starting
+
+## Kubernetes Troubleshooting
+
+Problems you may encounter when setting up and running Kubernetes clusters.
+
+<LinkCard
+  title="Kubernetes Issues"
+  href="/troubleshooting/kubernetes-issues/"
+  description="Nodes not joining, pods stuck in Pending, CrashLoopBackOff, services unreachable, DNS failures, metrics issues."
+/>
+
+**Common symptoms covered:**
+- Worker node fails to join the cluster
+- Pods stuck in `Pending` state
+- `CrashLoopBackOff` — pod keeps restarting
+- Service is unreachable from outside the cluster
+- DNS resolution failing inside pods
+- Metrics server not reporting data
+- Autoscaler not scaling as expected

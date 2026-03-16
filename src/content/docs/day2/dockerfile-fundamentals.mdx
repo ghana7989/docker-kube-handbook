@@ -1,0 +1,262 @@
+---
+title: "Dockerfile Fundamentals"
+description: "Why Dockerfiles exist and how to write them to package your applications."
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## The Problem
+
+Yesterday you ran pre-built containers from Docker Hub — nginx, Redis, PostgreSQL. Someone else packaged those applications into images.
+
+But your Node.js API is **your code**. It is not on Docker Hub. You need to create your own image that includes:
+- The right version of Node.js
+- Your application code
+- Your npm dependencies
+- The correct startup command
+
+You could start a container, manually install everything inside it, and then save the result. But that approach is **unrepeatable** — no one (including future-you) knows exactly what steps you took. If a dependency changes, you have to do it all over again manually.
+
+You need a **recipe** — a text file that describes, step by step, how to build the image. That file is a **Dockerfile**.
+
+## Why Dockerfiles?
+
+A Dockerfile is a **declarative recipe** for building a Docker image. It is:
+
+- **Repeatable** — run the same Dockerfile, get the same image every time
+- **Versionable** — store it in Git alongside your code
+- **Readable** — anyone can understand how the image is built
+- **Automatable** — CI/CD systems can build images from Dockerfiles automatically
+
+```d2
+direction: right
+
+SourceCode: Your Source Code {
+  AppCode: server.js
+  PkgJson: package.json
+  PkgLock: package-lock.json
+}
+
+Dockerfile: Dockerfile {
+  shape: page
+  style.bold: true
+}
+
+DockerBuild: docker build {
+  shape: rectangle
+}
+
+Image: Your Custom Image {
+  Base: Node.js 18
+  Deps: npm packages
+  Code: Your app
+  CMD: npm start
+}
+
+SourceCode -> DockerBuild: Context {
+  style.animated: true
+}
+Dockerfile -> DockerBuild: Instructions {
+  style.animated: true
+}
+DockerBuild -> Image: Produces {
+  style.animated: true
+}
+```
+
+## Anatomy of a Dockerfile
+
+Here is a Dockerfile for our Node.js API:
+
+```dockerfile title="Dockerfile"
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+
+RUN npm install
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "start"]
+```
+
+Every line is an **instruction**. Let's understand why each one exists:
+
+### FROM — The Starting Point
+
+```dockerfile
+FROM node:18-alpine
+```
+
+**Why?** Every image is built on top of another image. You do not start from zero — you start from a **base image** that already has the OS libraries and runtime you need. `node:18-alpine` gives you Node.js 18 on Alpine Linux (a minimal Linux distribution, ~5 MB).
+
+**Why Alpine?** The default `node:18` image is based on Debian and is ~350 MB. The Alpine variant is ~50 MB. Smaller images mean faster pulls, less storage, and a smaller attack surface.
+
+### WORKDIR — Set the Working Directory
+
+```dockerfile
+WORKDIR /app
+```
+
+**Why?** Without this, all commands run in the root directory `/`. Setting a working directory keeps things organized and avoids conflicts with system files. Every subsequent instruction (`COPY`, `RUN`, `CMD`) runs relative to `/app`.
+
+### COPY package*.json — Copy Dependency Manifests First
+
+```dockerfile
+COPY package*.json ./
+```
+
+**Why copy just the dependency files first?** This is a caching optimization. Docker caches each instruction as a layer. If your code changes but `package.json` does not, Docker reuses the cached `npm install` layer instead of reinstalling everything. This saves minutes on every build.
+
+We will explore this in depth in [Image Layers and Build Caching](/day2/image-layers/).
+
+### RUN npm install — Install Dependencies
+
+```dockerfile
+RUN npm install
+```
+
+**Why?** This installs your npm packages inside the image. The `RUN` instruction executes a command during the build process — the result (the `node_modules` folder) becomes part of the image.
+
+### COPY . . — Copy Application Code
+
+```dockerfile
+COPY . .
+```
+
+**Why after npm install?** Because your code changes frequently, but your dependencies change rarely. By copying code last, you maximize cache hits for the `npm install` layer. If you copied everything first, any code change would invalidate the npm install cache.
+
+### EXPOSE — Document the Port
+
+```dockerfile
+EXPOSE 3000
+```
+
+**Why?** This does not actually open a port — it is documentation. It tells anyone reading the Dockerfile "this application listens on port 3000." You still need `-p 3000:3000` when running the container.
+
+### CMD — The Startup Command
+
+```dockerfile
+CMD ["npm", "start"]
+```
+
+**Why?** This defines what runs when the container starts. It is PID 1 — the main process. When this process exits, the container stops.
+
+The JSON array format (`["npm", "start"]`) is called **exec form** — it runs the command directly. The string format (`CMD npm start`) runs through a shell, which adds unnecessary overhead and makes signal handling harder.
+
+<Aside type="tip" title="CMD vs ENTRYPOINT">
+`CMD` provides the default command — it can be overridden when running the container (`docker run myimage node debug.js`). `ENTRYPOINT` sets a fixed command — arguments are appended to it. For most applications, `CMD` is sufficient.
+</Aside>
+
+## Building the Image
+
+```bash frame="terminal" title="Build from the Dockerfile in the current directory"
+docker build -t my-api:1.0 .
+```
+
+- `-t my-api:1.0` — tag the image with a name and version
+- `.` — the build context (the directory Docker sends to the daemon for COPY operations)
+
+```d2
+direction: down
+
+BuildContext: Build Context (.) {
+  DF: Dockerfile
+  SRC: server.js
+  PKG: package.json
+  Lock: package-lock.json
+  NM: node_modules (ignored by .dockerignore)
+}
+
+Daemon: Docker Daemon {
+  Step1: "Step 1: FROM node:18-alpine"
+  Step2: "Step 2: WORKDIR /app"
+  Step3: "Step 3: COPY package*.json"
+  Step4: "Step 4: RUN npm install"
+  Step5: "Step 5: COPY . ."
+  Step6: "Step 6: CMD npm start"
+  
+  Step1 -> Step2
+  Step2 -> Step3
+  Step3 -> Step4
+  Step4 -> Step5
+  Step5 -> Step6
+}
+
+ResultImage: my-api:1.0 {
+  style.bold: true
+}
+
+BuildContext -> Daemon: Sent to daemon {
+  style.animated: true
+}
+Daemon -> ResultImage: Image built {
+  style.animated: true
+}
+```
+
+### The .dockerignore File
+
+Just like `.gitignore`, a `.dockerignore` file tells Docker what NOT to send to the daemon:
+
+```text title=".dockerignore"
+node_modules
+.git
+.env
+npm-debug.log
+README.md
+```
+
+**Why?** The build context is sent entirely to the daemon. If your `node_modules` folder is 500 MB, that is 500 MB transferred on every build — even though `RUN npm install` creates its own `node_modules` inside the image. `.dockerignore` keeps the build fast.
+
+## Running Your Custom Image
+
+```bash frame="terminal"
+docker run -d -p 3000:3000 --name api my-api:1.0
+```
+
+```bash frame="terminal" title="Verify it is running"
+docker ps
+```
+
+```bash frame="terminal" title="Check the logs"
+docker logs api
+```
+
+```bash frame="terminal" title="Test the API"
+curl http://localhost:3000
+```
+
+## What Could Go Wrong
+
+| Symptom | Root Cause | Fix |
+|---------|-----------|-----|
+| `COPY failed: file not found` | File not in build context or misspelled | Check path relative to Dockerfile location |
+| Build takes forever | Large build context (node_modules not ignored) | Add `.dockerignore` |
+| `npm install` fails | Network issues or wrong Node version | Check base image version, ensure network access |
+| Container exits immediately | `CMD` is wrong or app crashes on startup | Check `docker logs <container>` |
+| Image is 1 GB+ | Using `node:18` instead of `node:18-alpine` | Switch to Alpine base |
+
+## How This Connects to Our Application
+
+We will use this exact Dockerfile pattern to containerize our Node.js API in [Lab 4](/labs/lab4-containerize-backend/). The same principles apply to any language — Python uses `pip install`, Go uses `go build`, Java uses `mvn package`. The structure is always:
+
+1. Start from a base image with the runtime
+2. Copy dependency manifests
+3. Install dependencies
+4. Copy application code
+5. Define the startup command
+
+## Key Decisions Made
+
+| Decision | Why |
+|----------|-----|
+| Dockerfile over manual image creation | Repeatable, versionable, readable, automatable. Manual steps are forgotten and unreproducible. |
+| Alpine base images | 50 MB vs 350 MB. Faster builds, pulls, and deployments. Smaller attack surface. |
+| Copy dependency files before code | Maximizes Docker's build cache. Code changes frequently; dependencies change rarely. |
+| `.dockerignore` for node_modules | Prevents sending hundreds of MB to the daemon on every build. |
+| Exec form for CMD | Direct process execution, proper signal handling, no unnecessary shell overhead. |

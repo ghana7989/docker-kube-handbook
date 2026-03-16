@@ -1,0 +1,56 @@
+---
+title: "Reference"
+description: "Quick reference guides, cheat sheets, and comparison tables."
+---
+
+import { CardGrid, LinkCard, Aside } from '@astrojs/starlight/components';
+
+<Aside type="tip" title="Reference with Context">
+These are not bare command lists. Every entry includes a brief **WHY** annotation — so you understand when and why to use each command, not just what it does.
+</Aside>
+
+## Cheat Sheets
+
+<CardGrid>
+  <LinkCard
+    title="Docker Commands"
+    href="/reference/docker-cheatsheet/"
+    description="Essential Docker commands — images, containers, volumes, networks — with WHY annotations."
+  />
+  <LinkCard
+    title="kubectl Commands"
+    href="/reference/kubectl-cheatsheet/"
+    description="Essential kubectl commands — organized by what you are trying to accomplish."
+  />
+</CardGrid>
+
+## YAML & Examples
+
+<LinkCard
+  title="Kubernetes YAML Examples"
+  href="/reference/yaml-examples/"
+  description="Ready-to-use manifests — Deployment, Service, ConfigMap, Secret, Job, CronJob, HPA."
+/>
+
+## Comparison Tables
+
+<CardGrid>
+  <LinkCard
+    title="Service Type Comparison"
+    href="/reference/service-comparison/"
+    description="ClusterIP vs NodePort vs LoadBalancer — when to use each, traffic flow, and trade-offs."
+  />
+  <LinkCard
+    title="Deployment Strategy Comparison"
+    href="/reference/deployment-comparison/"
+    description="Rolling vs blue-green vs canary — risk level, complexity, and decision guide."
+  />
+</CardGrid>
+
+## Lifecycle Reference
+
+<LinkCard
+  title="Container Lifecycle"
+  href="/reference/container-lifecycle-ref/"
+  description="Complete overview of container states, transitions, and what triggers each."
+/>

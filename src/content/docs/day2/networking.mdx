@@ -1,0 +1,309 @@
+---
+title: "Docker Networking"
+description: "How containers communicate with each other and the outside world."
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## The Problem
+
+You have three containers running — your Node.js API, Redis, and PostgreSQL. Each is an isolated process with its own network namespace — its own IP address, its own ports.
+
+Your API needs to connect to Redis on port 6379 and PostgreSQL on port 5432. But the containers are isolated from each other. **How do they communicate?**
+
+And from the outside — a user's browser needs to reach your API on port 3000. But the container's port 3000 is inside its network namespace — **it is not visible to the host machine by default.**
+
+Docker networking solves both problems.
+
+## How Container Networking Works
+
+By default, Docker creates a virtual network called `bridge`. Every container connects to this network and gets a private IP address. Containers on the same network **can reach each other**.
+
+```d2
+direction: down
+
+HostMachine: Host Machine {
+  HostNetwork: "Host Network (192.168.1.x)"
+  
+  DockerBridge: Docker Bridge Network (172.17.0.0/16) {
+    style.bold: true
+    
+    API: "api container\n172.17.0.2:3000"
+    Redis: "redis container\n172.17.0.3:6379"
+    PG: "postgres container\n172.17.0.4:5432"
+    
+    API -> Redis: Connect to 172.17.0.3:6379 {
+      style.animated: true
+    }
+    API -> PG: Connect to 172.17.0.4:5432 {
+      style.animated: true
+    }
+  }
+  
+  HostNetwork -> DockerBridge: Port mapping (-p)
+}
+
+Browser: User Browser {
+  shape: person
+}
+
+Browser -> HostMachine: "http://localhost:3000" {
+  style.animated: true
+}
+```
+
+But there is a problem with the default bridge network — **containers can only reach each other by IP address**, not by name. IP addresses are assigned dynamically and change every time a container restarts. Hardcoding `172.17.0.3` in your API config is fragile and will break.
+
+## User-Defined Networks: The Solution
+
+Docker lets you create **custom networks**. Containers on a custom network get **automatic DNS resolution** — they can reach each other by container name.
+
+```bash frame="terminal" title="Create a custom network"
+docker network create app-network
+```
+
+```bash frame="terminal" title="Run containers on the custom network"
+docker run -d --name redis --network app-network redis:7-alpine
+
+docker run -d --name postgres --network app-network \
+  -e POSTGRES_PASSWORD=secret \
+  postgres:16-alpine
+
+docker run -d --name api --network app-network \
+  -p 3000:3000 \
+  -e REDIS_URL=redis://redis:6379 \
+  -e DATABASE_URL=postgres://postgres:secret@postgres:5432/myapp \
+  my-api:1.0
+```
+
+Notice the connection strings: `redis://redis:6379` and `postgres://postgres:5432/myapp`. The hostnames `redis` and `postgres` are the **container names** — Docker's built-in DNS resolves them to the correct IP addresses.
+
+```d2
+direction: down
+
+AppNetwork: "app-network (User-Defined)" {
+  style.bold: true
+  
+  DNS: "Docker DNS" {
+    shape: cylinder
+    R1: "redis → 172.18.0.2"
+    R2: "postgres → 172.18.0.3"
+    R3: "api → 172.18.0.4"
+  }
+  
+  API: "api container" {
+    EnvRedis: "REDIS_URL=redis://redis:6379"
+    EnvDB: "DATABASE_URL=postgres://postgres:..."
+  }
+  
+  Redis: "redis container"
+  PG: "postgres container"
+  
+  API -> DNS: "Resolve 'redis'" {
+    style.animated: true
+  }
+  DNS -> Redis: "172.18.0.2" {
+    style.animated: true
+  }
+  API -> DNS: "Resolve 'postgres'" {
+    style.animated: true
+  }
+  DNS -> PG: "172.18.0.3" {
+    style.animated: true
+  }
+}
+```
+
+<Aside type="tip" title="Why Custom Networks Over Default Bridge">
+The default `bridge` network does not provide DNS resolution between containers. Custom networks do. Custom networks also provide better isolation — containers on different networks cannot communicate unless explicitly connected.
+</Aside>
+
+## Port Mapping
+
+Containers have their own network namespace. To make a container's port accessible from the host (and the outside world), you **map** a host port to a container port:
+
+```bash frame="terminal"
+docker run -d -p 3000:3000 --name api my-api:1.0
+```
+
+The format is `-p HOST_PORT:CONTAINER_PORT`. This tells Docker: "forward traffic arriving at the host's port 3000 to the container's port 3000."
+
+You can map to a different host port:
+
+```bash frame="terminal"
+docker run -d -p 8080:3000 --name api my-api:1.0
+```
+
+Now the API is accessible at `http://localhost:8080` even though it listens on port 3000 inside the container.
+
+```d2
+direction: right
+
+Outside: "Outside World" {
+  shape: cloud
+}
+
+Host: Host Machine {
+  Port8080: "Port 8080"
+  Port5432: "Port 5432"
+  
+  APIContainer: "api container" {
+    InternalPort3000: "Port 3000"
+  }
+  
+  PGContainer: "postgres container" {
+    InternalPort5432: "Port 5432"
+  }
+  
+  RedisContainer: "redis container" {
+    InternalPort6379: "Port 6379 (no mapping)"
+  }
+  
+  Port8080 -> InternalPort3000: "-p 8080:3000" {
+    style.animated: true
+  }
+  Port5432 -> InternalPort5432: "-p 5432:5432" {
+    style.animated: true
+  }
+}
+
+Outside -> Port8080: "http://host:8080" {
+  style.animated: true
+}
+```
+
+<Aside type="note" title="Not Everything Needs Port Mapping">
+Redis does not need a port mapping if only the API container talks to it. Port mapping exposes a port to the **host and outside world**. Containers on the same Docker network can communicate directly without port mapping.
+</Aside>
+
+## Network Types
+
+Docker supports several network types:
+
+### Bridge (Default)
+
+The most common type. Creates an isolated virtual network on the host. Containers get private IPs and communicate through the bridge.
+
+**When to use:** Almost always. This is the standard for running containers on a single host.
+
+### Host
+
+The container uses the host's network directly — no isolation, no port mapping needed.
+
+```bash frame="terminal"
+docker run --network host my-api:1.0
+```
+
+**When to use:** When you need maximum network performance and do not need network isolation. Not available on macOS or Windows (Docker runs in a VM on those platforms).
+
+### None
+
+The container has no network access at all.
+
+```bash frame="terminal"
+docker run --network none my-api:1.0
+```
+
+**When to use:** For security-sensitive batch jobs that should have zero network access.
+
+## Network Isolation
+
+Containers on **different networks** cannot communicate. This provides security isolation:
+
+```d2
+direction: down
+
+FrontendNet: "frontend-network" {
+  Nginx: nginx (reverse proxy)
+  ReactApp: react-app
+  
+  Nginx -> ReactApp {
+    style.animated: true
+  }
+}
+
+BackendNet: "backend-network" {
+  API: api
+  Redis: redis
+  PG: postgres
+  
+  API -> Redis {
+    style.animated: true
+  }
+  API -> PG {
+    style.animated: true
+  }
+}
+
+FrontendNet -> BackendNet: "Only api is on both networks" {
+  style.animated: true
+}
+```
+
+You can connect a container to multiple networks:
+
+```bash frame="terminal"
+docker network connect frontend-network api
+docker network connect backend-network api
+```
+
+Now the API container can talk to both the frontend (nginx) and backend (Redis, PostgreSQL) networks, but nginx cannot directly reach Redis — it is on a different network.
+
+## Putting It All Together
+
+Here is the complete network setup for our microservice stack:
+
+```bash frame="terminal" title="Create the network"
+docker network create app-network
+```
+
+```bash frame="terminal" title="Start PostgreSQL"
+docker run -d \
+  --name postgres \
+  --network app-network \
+  -v pgdata:/var/lib/postgresql/data \
+  -e POSTGRES_PASSWORD=secret \
+  -e POSTGRES_DB=myapp \
+  postgres:16-alpine
+```
+
+```bash frame="terminal" title="Start Redis"
+docker run -d \
+  --name redis \
+  --network app-network \
+  redis:7-alpine
+```
+
+```bash frame="terminal" title="Start the API"
+docker run -d \
+  --name api \
+  --network app-network \
+  -p 3000:3000 \
+  -e REDIS_URL=redis://redis:6379 \
+  -e DATABASE_URL=postgres://postgres:secret@postgres:5432/myapp \
+  my-api:1.0
+```
+
+Three containers, one network, DNS-based discovery, only the API exposed to the host.
+
+## How This Connects to Our Application
+
+This is exactly the setup we will use in [Lab 4](/labs/lab4-containerize-backend/). The pattern maps directly to Kubernetes:
+
+| Docker Concept | Kubernetes Equivalent |
+|---------------|----------------------|
+| Custom network | Cluster network (all pods can communicate) |
+| Container name DNS | Service DNS (`api-service.default.svc.cluster.local`) |
+| Port mapping (`-p`) | NodePort / LoadBalancer Service |
+| Network isolation | Network Policies |
+
+The DNS-based service discovery you learn here is the **same pattern** Kubernetes uses — just at a larger scale.
+
+## Key Decisions Made
+
+| Decision | Why |
+|----------|-----|
+| Custom networks over default bridge | DNS resolution by container name. No hardcoded IP addresses. |
+| DNS-based service discovery | Container IPs change on restart. Names are stable. This pattern carries into Kubernetes. |
+| Port mapping only for external access | Internal services (Redis, PostgreSQL) do not need host port exposure. Reduces attack surface. |
+| Network isolation for security | Frontend and backend on separate networks. Only the API bridges both. Defense in depth. |

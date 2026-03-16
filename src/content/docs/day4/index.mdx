@@ -1,0 +1,88 @@
+---
+title: "Day 4 — Running Applications in Kubernetes"
+description: "Deploy and expose your applications inside a Kubernetes cluster."
+---
+
+import { CardGrid, LinkCard, Aside } from '@astrojs/starlight/components';
+
+<Aside type="tip" title="The Big Question">
+You have a Kubernetes cluster running. You have Docker images of your application. But Kubernetes does not run Docker containers directly — it runs **Pods**. **What are Pods? How do you deploy your app? And once it is running, how does anyone reach it?**
+</Aside>
+
+## What You Will Learn Today
+
+Day 4 answers: **how do we get our application running inside Kubernetes — and how does traffic reach it?**
+
+By the end of today, you will understand:
+
+- **Why** Kubernetes uses Pods instead of running containers directly
+- **Why** ReplicaSets exist — maintaining the right number of pods
+- **Why** Deployments wrap ReplicaSets — managing updates and rollbacks
+- **How** Services route traffic to pods — ClusterIP, NodePort, and service discovery
+- **Why** configuration lives outside containers — ConfigMaps and Secrets
+
+## The Story So Far
+
+You have a working Kubernetes cluster (Day 3) and containerized microservices (Day 2). Now it is time to deploy them. But Kubernetes has its own abstractions — Pods, ReplicaSets, Deployments, Services — and each exists for a reason.
+
+Today you will deploy the **Node.js API** into Kubernetes, configure it with environment variables from a ConfigMap, connect it to **Redis** and **PostgreSQL**, and expose it so external traffic can reach it.
+
+## Today's Topics
+
+<CardGrid>
+  <LinkCard
+    title="Pods"
+    href="/day4/pods/"
+    description="The smallest deployable unit in Kubernetes — and why it is not just a container."
+  />
+  <LinkCard
+    title="ReplicaSets"
+    href="/day4/replicasets/"
+    description="You want 3 copies of your API running. What happens when one crashes? ReplicaSets handle that."
+  />
+  <LinkCard
+    title="Deployments"
+    href="/day4/deployments/"
+    description="The standard way to run applications — why Deployments exist on top of ReplicaSets."
+  />
+  <LinkCard
+    title="Services and Networking"
+    href="/day4/services/"
+    description="Pods get random IPs that change. How does traffic reliably reach your application?"
+  />
+  <LinkCard
+    title="ConfigMaps and Secrets"
+    href="/day4/configmaps-secrets/"
+    description="Your API needs a database URL and credentials. Why hardcoding them is a mistake."
+  />
+</CardGrid>
+
+## Related Labs
+
+<CardGrid>
+  <LinkCard
+    title="Lab 6: Deploying Applications"
+    href="/labs/lab6-deploying-apps/"
+    description="Create Deployments, scale them, and observe how Kubernetes manages your pods."
+  />
+  <LinkCard
+    title="Lab 7: Services and Networking"
+    href="/labs/lab7-services-networking/"
+    description="Expose your application with Services and test traffic routing."
+  />
+  <LinkCard
+    title="Lab 8: ConfigMaps and Secrets"
+    href="/labs/lab8-configmaps-secrets/"
+    description="Externalize configuration and inject it into your application."
+  />
+</CardGrid>
+
+## By End of Day 4
+
+You should be able to:
+
+- Deploy any containerized application into Kubernetes
+- Explain **why** Pods, ReplicaSets, and Deployments are separate abstractions
+- Expose applications with the right Service type for the use case
+- Manage configuration and secrets outside the container image
+- Have the API service running in Kubernetes, connected to Redis and PostgreSQL

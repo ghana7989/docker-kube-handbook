@@ -1,0 +1,230 @@
+---
+title: "Why Containers Exist"
+description: "The problems containers solve and why they became essential for modern software."
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+## The Problem
+
+Imagine this scenario. You are a developer working on a Node.js API. It runs perfectly on your laptop — you have Node 18 installed, the right version of npm, the exact libraries your app needs.
+
+Your teammate clones the repo. They have Node 20 installed. One of your dependencies behaves differently on Node 20. The app crashes.
+
+You push the code to a staging server. The server runs Ubuntu 22.04 — your laptop runs macOS. A native module fails to compile. The app crashes again.
+
+This is the **"works on my machine"** problem. It has plagued software teams for decades.
+
+<Aside type="caution" title="The Real Cost">
+The "works on my machine" problem is not just annoying. It causes production outages, wastes developer time debugging environment differences, and slows down releases. Companies have lost days of engineering time to dependency conflicts that had nothing to do with their actual code.
+</Aside>
+
+## Why Does This Happen?
+
+Software does not run in isolation. Every application depends on:
+
+- An **operating system** with specific system libraries
+- A **runtime** (Node.js, Python, Java JRE) at a specific version
+- **Dependencies** (npm packages, pip packages) at specific versions
+- **Configuration** (environment variables, config files, ports)
+- **System tools** (compilers, build tools) for native modules
+
+When any of these differ between your machine, your teammate's machine, and the production server — things break.
+
+```d2
+direction: right
+
+YourLaptop: Your Laptop {
+  OS: macOS 14
+  Runtime: Node 18.17
+  Deps: express@4.18
+  Config: PORT=3000
+}
+
+TeammateLaptop: Teammate Laptop {
+  OS: Ubuntu 22.04
+  Runtime: Node 20.11
+  Deps: express@4.19
+  Config: PORT=8080
+}
+
+Server: Production Server {
+  OS: Amazon Linux 2
+  Runtime: Node 16.20
+  Deps: express@4.17
+  Config: PORT=80
+}
+
+YourLaptop -> TeammateLaptop: Same code {
+  style.animated: true
+}
+TeammateLaptop -> Server: Same code {
+  style.animated: true
+}
+```
+
+Same code, three different environments, three different outcomes.
+
+## The Solutions That Came Before
+
+Before containers, teams tried other approaches:
+
+### Virtual Machines
+
+"Ship the entire machine." Create a VM image with the OS, runtime, dependencies, and application — then run that VM everywhere.
+
+This works, but VMs are **heavy**. Each VM runs a full operating system. A VM image is typically 2–10 GB. Starting a VM takes minutes. Running 10 VMs on a server means running 10 full operating systems — an enormous waste of resources.
+
+### Configuration Management (Ansible, Chef, Puppet)
+
+"Script the environment." Write automation scripts that install the exact same packages on every server.
+
+This is better, but it suffers from **drift**. Over time, servers diverge — someone manually installs a package on one server, an update changes a config file on another. And it is slow — provisioning a new server takes minutes to hours.
+
+### Language-Level Solutions (virtualenv, nvm, rbenv)
+
+"Isolate the runtime." Tools like Python's virtualenv or Node's nvm manage runtime versions per project.
+
+This helps, but only solves **one layer**. You still have OS-level differences, system library differences, and configuration differences.
+
+## The Container Idea
+
+Containers take a different approach: **package the application AND its entire environment into a single unit that runs the same way everywhere.**
+
+A container includes:
+- A minimal filesystem (just enough OS libraries — not a full OS)
+- The runtime (Node.js, Python, etc.)
+- All dependencies (npm packages, etc.)
+- Your application code
+- The exact configuration needed
+
+But unlike a VM, containers **share the host operating system's kernel**. They do not run a separate OS. This makes them:
+
+- **Lightweight** — a container image is typically 50–500 MB (not 2–10 GB)
+- **Fast** — containers start in milliseconds (not minutes)
+- **Efficient** — you can run dozens of containers on a single machine
+
+```d2
+direction: down
+
+VM_Stack: Virtual Machine Approach {
+  Hardware: Hardware
+  HostOS: Host Operating System
+  Hypervisor: Hypervisor
+  
+  VM1: VM 1 {
+    GuestOS1: Guest OS (2 GB)
+    Runtime1: Runtime
+    App1: App A
+  }
+  
+  VM2: VM 2 {
+    GuestOS2: Guest OS (2 GB)
+    Runtime2: Runtime
+    App2: App B
+  }
+  
+  Hardware -> HostOS
+  HostOS -> Hypervisor
+  Hypervisor -> VM1
+  Hypervisor -> VM2
+}
+
+Container_Stack: Container Approach {
+  Hardware2: Hardware
+  HostOS2: Host Operating System
+  Kernel: Shared Kernel
+  Runtime2: Container Runtime
+  
+  C1: Container A (80 MB) {
+    Libs1: App libs
+    AppA: App A
+  }
+  
+  C2: Container B (120 MB) {
+    Libs2: App libs
+    AppB: App B
+  }
+  
+  Hardware2 -> HostOS2
+  HostOS2 -> Kernel
+  Kernel -> Runtime2
+  Runtime2 -> C1
+  Runtime2 -> C2
+}
+```
+
+## How Containers Actually Work
+
+Containers are not magic — they use two Linux kernel features that have existed for years:
+
+### Namespaces — Isolation
+
+Linux namespaces create isolated views of system resources. A container gets its own:
+- **PID namespace** — it sees only its own processes (PID 1 is the app, not the system's init)
+- **Network namespace** — it has its own IP address and ports
+- **Mount namespace** — it has its own filesystem
+- **User namespace** — it has its own user IDs
+
+The process thinks it is the only thing running on the machine. In reality, it shares the kernel with everything else.
+
+### Cgroups — Resource Limits
+
+Control groups (cgroups) limit how much CPU, memory, and I/O a process can use. Without cgroups, a runaway container could consume all the host's memory and crash everything else.
+
+```d2
+direction: down
+
+LinuxKernel: Linux Kernel {
+  Namespaces: Namespaces {
+    PID: PID (process isolation)
+    Net: Network (own IP/ports)
+    Mnt: Mount (own filesystem)
+    User: User (own UIDs)
+  }
+  
+  Cgroups: Cgroups {
+    CPU: CPU limits
+    Mem: Memory limits
+    IO: I/O limits
+  }
+}
+
+ContainerA: Container A {
+  ProcessA: node server.js
+}
+
+ContainerB: Container B {
+  ProcessB: python app.py
+}
+
+LinuxKernel -> ContainerA: isolate + limit {
+  style.animated: true
+}
+LinuxKernel -> ContainerB: isolate + limit {
+  style.animated: true
+}
+```
+
+<Aside type="note" title="Key Insight">
+Containers are not lightweight VMs. They are **isolated processes** running on the host OS, with their own filesystem and network, constrained by cgroups. The kernel is shared — not duplicated.
+</Aside>
+
+## Why This Matters for Our Application
+
+Our microservice application has four services — a React frontend, a Node.js API, Redis, and PostgreSQL. Each has:
+- Different runtimes (Node.js, Redis server, PostgreSQL server)
+- Different dependencies
+- Different configuration requirements
+
+Without containers, setting up a development environment means installing all four runtimes, configuring ports to not conflict, and hoping nothing breaks when you update one.
+
+With containers, each service runs in its own isolated environment. You type one command and all four services start — with the exact versions and configurations they need.
+
+## Key Decisions Made
+
+| Decision | Why |
+|----------|-----|
+| Containers over VMs | VMs waste resources by running full operating systems. Containers share the kernel and start in milliseconds. |
+| Containers over config management | Configuration management suffers from drift and is slow. Containers guarantee the environment is identical every time. |
+| Linux kernel features (namespaces + cgroups) | Containers use proven kernel features, not a new virtualization layer. This is why they are so lightweight and fast. |

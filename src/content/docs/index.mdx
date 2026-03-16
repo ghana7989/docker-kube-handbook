@@ -1,40 +1,138 @@
 ---
-title: Welcome to Starlight
-description: Get started building your docs site with Starlight.
-template: splash # Remove or comment out this line to display the site sidebar on this page.
+title: Docker & Kubernetes Handbook
+description: A 5-day hands-on training — learn Docker and Kubernetes by building and deploying a real microservice application.
+template: splash
 hero:
-  tagline: Congrats on setting up a new Starlight project!
-  image:
-    file: ../../assets/houston.webp
+  tagline: Learn Docker and Kubernetes by building and deploying a real microservice application — not by memorizing commands.
   actions:
-    - text: Example Guide
-      link: /guides/example/
+    - text: Start Day 1
+      link: /day1/
       icon: right-arrow
-    - text: Read the Starlight docs
-      link: https://starlight.astro.build
-      icon: external
+      variant: primary
+    - text: Browse Labs
+      link: /labs/
+      icon: open-book
       variant: minimal
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkCard, Aside } from '@astrojs/starlight/components';
 
-## Next steps
+## The Story of This Course
 
-<CardGrid stagger>
-	<Card title="Update content" icon="pencil">
-		Edit `src/content/docs/index.mdx` to see this page change.
-	</Card>
-	<Card title="Change page layout" icon="document">
-		Delete `template: splash` in `src/content/docs/index.mdx` to display a
-		sidebar on this page.
-	</Card>
-	<Card title="Add new content" icon="add-document">
-		Add Markdown or MDX files to `src/content/docs` to create new pages.
-	</Card>
-	<Card title="Configure your site" icon="setting">
-		Edit your `sidebar` and other config in `astro.config.mjs`.
-	</Card>
-	<Card title="Read the docs" icon="open-book">
-		Learn more in [the Starlight Docs](https://starlight.astro.build/).
-	</Card>
+You are a developer. You have built a microservice application — a React frontend, a Node.js API, a Redis cache, and a PostgreSQL database. It works perfectly on your laptop.
+
+Now you need to deploy it. Not to one server — to a cluster of machines that can handle real traffic, recover from crashes, and scale when demand spikes.
+
+**This course teaches you how.** Not by listing commands to memorize, but by walking you through the decisions, trade-offs, and reasoning behind every step.
+
+<Aside type="tip" title="How This Course Works">
+Every topic starts with **WHY** — the problem you are facing — before showing you HOW to solve it. You will never run a command without understanding why it exists.
+</Aside>
+
+## What You Will Build
+
+Over 5 days, you will containerize, deploy, scale, and operate this system:
+
+```d2
+direction: right
+
+Users: Users {
+  shape: person
+}
+
+Frontend: React Frontend {
+  shape: rectangle
+  style.bold: true
+}
+
+API: Node.js API {
+  shape: rectangle
+  style.bold: true
+}
+
+Redis: Redis Cache {
+  shape: cylinder
+}
+
+PostgreSQL: PostgreSQL DB {
+  shape: cylinder
+}
+
+Users -> Frontend: HTTP { style.animated: true }
+Frontend -> API: REST API { style.animated: true }
+API -> Redis: Cache reads/writes { style.animated: true }
+API -> PostgreSQL: Data persistence { style.animated: true }
+```
+
+<CardGrid>
+  <Card title="React Frontend" icon="laptop">
+    A web UI that talks to the backend API — containerized and served through Kubernetes.
+  </Card>
+  <Card title="Node.js API" icon="setting">
+    A REST API that processes requests, connects to Redis and PostgreSQL — deployed as a scalable service.
+  </Card>
+  <Card title="Redis Cache" icon="rocket">
+    An in-memory cache for fast responses — running as a container with persistent storage.
+  </Card>
+  <Card title="PostgreSQL Database" icon="document">
+    A persistent relational database — with data that survives container restarts.
+  </Card>
+</CardGrid>
+
+## 5-Day Training Path
+
+<CardGrid>
+  <LinkCard
+    title="Day 1 — Docker Fundamentals"
+    href="/day1/"
+    description="Your app works on your machine. Let's make it work everywhere. Understand why containers exist, how Docker works, and run your first containers."
+  />
+  <LinkCard
+    title="Day 2 — Building Containers"
+    href="/day2/"
+    description="Now let's package YOUR application, not just run someone else's. Dockerfiles, image layers, multi-stage builds, volumes, and networking."
+  />
+  <LinkCard
+    title="Day 3 — Kubernetes Fundamentals"
+    href="/day3/"
+    description="One server is not enough. What happens when it goes down? Why Kubernetes, cluster architecture, and setting up your first cluster."
+  />
+  <LinkCard
+    title="Day 4 — Running Apps in Kubernetes"
+    href="/day4/"
+    description="Let's deploy our app into the cluster. But how does traffic find it? Pods, Deployments, Services, ConfigMaps, and Secrets."
+  />
+  <LinkCard
+    title="Day 5 — Scaling & Operations"
+    href="/day5/"
+    description="Our app is running. Can it handle Black Friday traffic? What if we push a bad update? Deployment strategies, autoscaling, and monitoring."
+  />
+</CardGrid>
+
+## Who This Course Is For
+
+This training is designed for **developers** who have:
+
+- **Linux command-line experience** — you can navigate directories, edit files, and run commands
+- **Software development experience** — in any language (JavaScript, Python, Go, Java, etc.)
+- **Basic understanding of microservices** — you know what a frontend, backend, and database are
+
+You do **not** need prior Docker or Kubernetes experience. We start from zero.
+
+## Prerequisites
+
+Before Day 1, make sure you have:
+
+- A machine with at least **8 GB RAM** and a modern CPU
+- **Docker** installed ([installation guide](/day1/))
+- A **terminal** you are comfortable with
+- A **text editor** or IDE
+
+## Quick Links
+
+<CardGrid>
+  <LinkCard title="Hands-on Labs" href="/labs/" description="9 guided labs with step-by-step instructions — each one builds on the last." />
+  <LinkCard title="Troubleshooting" href="/troubleshooting/" description="Stuck? Common problems and how to solve them — with explanations of WHY each error happens." />
+  <LinkCard title="Docker Cheat Sheet" href="/reference/docker-cheatsheet/" description="Essential Docker commands — with WHY annotations for each." />
+  <LinkCard title="kubectl Cheat Sheet" href="/reference/kubectl-cheatsheet/" description="Essential kubectl commands — organized by what you are trying to accomplish." />
 </CardGrid>

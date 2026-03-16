@@ -1,0 +1,422 @@
+
+Create a documentation-first training website for a 5-day Docker and Kubernetes course using Astro + Starlight.
+
+This website will be used as the primary teaching material for a real training program.
+
+The training should NOT follow a generic syllabus. Instead, it should teach Docker and Kubernetes by building and deploying a real microservice application step by step.
+
+The website must feel like a professional trainer portal, not product documentation.
+
+The final result should be a fully working Astro + Starlight project with structured documentation pages, labs, and supporting material.
+
+Technology Requirements
+
+Use:
+
+- Astro
+- Starlight documentation theme
+- Markdown / MDX documentation pages
+- Static site generation
+- GitHub Pages compatible configuration
+
+Include:
+
+- package.json
+- astro.config
+- starlight configuration
+- sidebar configuration
+- dev/build scripts
+- README
+- deployment instructions
+
+The site must run with:
+
+npm install
+npm run dev
+
+Course Philosophy
+
+Do NOT create a generic syllabus page structure.
+
+Instead:
+
+Teach Docker and Kubernetes by building and deploying a realistic application.
+
+The course should revolve around deploying a system like:
+
+Frontend (React)
+     |
+Backend API (Node / Go)
+     |
+Redis cache
+     |
+PostgreSQL database
+
+Students will:
+
+1. Containerize services
+2. Run them with Docker
+3. Move them to Kubernetes
+4. Scale them
+5. Configure them
+6. Expose them through services
+7. Monitor them
+8. Autoscale them
+
+Every topic should connect to this system.
+
+Target Audience
+
+Developers with:
+
+- Linux knowledge
+- Software development experience
+- Basic understanding of microservices
+
+They may have never used Kubernetes before.
+
+Training Structure
+
+The training is 5 days, but the structure should be story-driven, not command-driven.
+
+Day 1 — Containers and Docker Fundamentals
+
+Goal:
+Understand containers and run services with Docker.
+
+Topics to cover:
+
+- Why containers exist
+- Containers vs virtual machines
+- Docker architecture
+- Docker images and containers
+- Container lifecycle
+
+Hands-on labs:
+
+Run nginx container
+
+docker run -d -p 8080:80 nginx
+
+Inspect containers
+
+docker ps
+docker logs
+docker exec -it <container> bash
+docker inspect <container>
+
+Students should understand:
+
+- What containers are
+- How they run processes
+- How networking works
+
+Day 2 — Building Containers
+
+Goal:
+Teach how to package an application inside a container.
+
+Topics:
+
+- Dockerfile fundamentals
+- Image layers
+- Build caching
+- Multi-stage builds
+- Docker volumes
+- Docker networking basics
+
+Hands-on:
+
+Create a Dockerfile for a backend service.
+
+Example:
+
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json .
+RUN npm install
+COPY . .
+CMD ["npm", "start"]
+
+Labs:
+
+- Build an image
+- Run container from image
+- Mount volumes
+- Persist database data
+- Connect containers using networks
+
+Mini project:
+
+Containerize:
+
+- Backend API
+- Redis
+- PostgreSQL
+
+Day 3 — Kubernetes Fundamentals
+
+Goal:
+Understand how Kubernetes runs containers.
+
+Topics:
+
+- Why Kubernetes exists
+- Kubernetes architecture
+- Control plane
+- Worker nodes
+- kube-apiserver
+- scheduler
+- controller manager
+- etcd
+- kubelet
+- kube-proxy
+
+Students should understand how Kubernetes manages containers across nodes.
+
+Hands-on:
+
+Install Kubernetes cluster using kubeadm.
+
+Cluster example:
+
+control-plane   192.168.56.10
+worker-1        192.168.56.11
+worker-2        192.168.56.12
+
+Labs:
+
+Initialize cluster
+
+kubeadm init
+
+Join worker nodes
+
+kubeadm join <token>
+
+Install CNI plugin.
+
+Verify cluster:
+
+kubectl get nodes
+
+Day 4 — Running Applications in Kubernetes
+
+Goal:
+Deploy and expose applications inside Kubernetes.
+
+Topics:
+
+- Pods
+- ReplicaSets
+- Deployments
+- Services
+- ClusterIP
+- NodePort
+- Service discovery
+- ConfigMaps
+- Secrets
+
+Hands-on:
+
+Create deployment
+
+kubectl apply -f deployment.yaml
+
+Scale application
+
+kubectl scale deployment api --replicas=3
+
+Expose application
+
+kubectl expose deployment api --type=NodePort
+
+Students deploy the backend service into Kubernetes.
+
+Students learn how services route traffic to pods.
+
+Day 5 — Scaling and Operating Kubernetes Applications
+
+Goal:
+Teach production-like Kubernetes capabilities.
+
+Topics:
+
+- Deployment strategies
+- Rolling updates
+- Blue-green deployment
+- Canary releases
+- Resource requests and limits
+- Metrics server
+- Horizontal Pod Autoscaler
+- Kubernetes Dashboard
+
+Hands-on:
+
+Update deployment image
+
+kubectl set image deployment api api=app:v2
+
+Create autoscaler
+
+kubectl autoscale deployment api --cpu-percent=70 --min=2 --max=10
+
+Students observe pods scaling automatically.
+
+Labs Section
+
+Create a dedicated Labs section including:
+
+Lab 1: Running containers
+Lab 2: Building Docker images
+Lab 3: Docker volumes and networking
+Lab 4: Containerizing the backend service
+Lab 5: Installing Kubernetes cluster
+Lab 6: Deploying applications
+Lab 7: Services and networking
+Lab 8: ConfigMaps and Secrets
+Lab 9: Autoscaling and monitoring
+
+Each lab page should include:
+
+Objective
+Prerequisites
+Step-by-step instructions
+Commands
+Expected output
+Troubleshooting
+Cleanup steps
+
+Troubleshooting Section
+
+Include common problems such as:
+
+Docker daemon not starting
+Permission denied with docker commands
+Port conflicts
+Image pull failures
+Containers exiting immediately
+Node failing to join cluster
+Pods stuck in Pending
+CrashLoopBackOff
+Service unreachable
+DNS failures
+Metrics server issues
+Autoscaler not scaling
+
+Reference Section
+
+Include quick references:
+
+Docker commands cheat sheet
+kubectl commands cheat sheet
+Common Kubernetes YAML examples
+Service type comparison
+Deployment strategy comparison
+Container lifecycle overview
+
+Example Assets
+
+Include example files such as:
+
+Dockerfile
+Multi-stage Dockerfile
+deployment.yaml
+service.yaml
+configmap.yaml
+secret.yaml
+job.yaml
+cronjob.yaml
+hpa.yaml
+
+Homepage
+
+Create a clean landing page that includes:
+
+Course title
+Course description
+Who this course is for
+Prerequisites
+5-day course overview
+Links to each training day
+Links to labs
+Links to troubleshooting
+Links to reference materials
+
+README
+
+Include instructions for:
+
+Installing dependencies
+Running the site locally
+Building the static site
+Deploying to GitHub Pages
+Adding new course content
+Organizing labs and examples
+
+Quality Expectations
+
+The generated project should feel like a real training portal.
+
+Avoid placeholder text.
+
+Write meaningful instructional content.
+
+Ensure the structure is clear, logical, and easy to extend in the future.
+
+
+Operating System Command Tabs
+
+The documentation must support commands for multiple operating systems whenever commands differ.
+
+Supported platforms:
+- Linux
+- macOS
+- Windows
+
+Use tabbed command blocks so users can easily switch between OS-specific instructions.
+
+Examples where this is required:
+- Installing Docker
+- Installing kubectl
+- Installing kubeadm
+- Installing container runtime
+- Package manager commands
+- Path differences
+- Shell commands
+- Kubernetes cluster setup steps
+- Any CLI command that may behave differently across operating systems
+
+Example structure:
+
+Tabs:
+Linux
+macOS
+Windows
+
+Example:
+
+Linux
+
+sudo apt update
+sudo apt install docker.io
+
+macOS
+
+brew install docker
+
+Windows
+
+winget install Docker.DockerDesktop
+
+If commands are identical across all systems, do not create separate tabs.
+
+Use a single command block instead.
+
+Important:
+- Prefer OS tabs for installation and environment setup steps.
+- For Kubernetes cluster labs, assume Linux nodes but still explain how Windows/macOS users can connect using kubectl.
+- Ensure commands are accurate for each platform.
+- Clearly mention when a step only works on Linux (for example kubeadm cluster setup).
+
+The goal is that learners on Windows, macOS, or Linux can follow the documentation without confusion.

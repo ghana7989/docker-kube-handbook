@@ -1,0 +1,85 @@
+---
+title: "Day 3 — Kubernetes Fundamentals"
+description: "Understand how Kubernetes runs and manages containers across multiple machines."
+---
+
+import { CardGrid, LinkCard, Aside } from '@astrojs/starlight/components';
+
+<Aside type="tip" title="The Big Question">
+Your containerized application runs great on a single machine. But what happens when that machine goes down at 3 AM? What if traffic spikes and one server cannot handle it? **Who restarts your crashed containers? Who adds more?**
+</Aside>
+
+## What You Will Learn Today
+
+Day 3 answers: **why can't we just run Docker in production — and what does Kubernetes actually do?**
+
+By the end of today, you will understand:
+
+- **Why** Docker alone is not enough for production — the problems that emerge at scale
+- **How** Kubernetes is architected — and why every component exists
+- **What** the control plane does — the brain that makes decisions
+- **What** worker nodes do — where your containers actually run
+- **How** to set up a real multi-node cluster with kubeadm
+
+## The Story So Far
+
+Over the last two days, you containerized our microservice application. You can run the API, Redis, and PostgreSQL together with Docker on a single machine.
+
+But a single machine is a **single point of failure**. If it crashes, everything goes down. If traffic grows, you cannot add more capacity. You need a system that:
+
+- Runs containers **across multiple machines**
+- **Automatically restarts** crashed containers
+- **Distributes traffic** across healthy instances
+- Lets you **scale up and down** based on demand
+
+That system is **Kubernetes**.
+
+## Today's Topics
+
+<CardGrid>
+  <LinkCard
+    title="Why Kubernetes Exists"
+    href="/day3/why-kubernetes/"
+    description="Docker Compose works on one machine. What breaks when you have 10 machines and 50 containers?"
+  />
+  <LinkCard
+    title="Kubernetes Architecture"
+    href="/day3/k8s-architecture/"
+    description="The cluster model — control plane and worker nodes. Why is it designed this way?"
+  />
+  <LinkCard
+    title="The Control Plane"
+    href="/day3/control-plane/"
+    description="API server, etcd, scheduler, controller manager — why each exists and what it does."
+  />
+  <LinkCard
+    title="Worker Nodes"
+    href="/day3/worker-nodes/"
+    description="Kubelet, kube-proxy, and the container runtime — the machines that run your workloads."
+  />
+  <LinkCard
+    title="Setting Up a Cluster"
+    href="/day3/cluster-setup/"
+    description="Build a real 3-node cluster with kubeadm — control plane + 2 workers."
+  />
+</CardGrid>
+
+## Related Lab
+
+<LinkCard
+  title="Lab 5: Install a Kubernetes Cluster"
+  href="/labs/lab5-install-k8s-cluster/"
+  description="Set up a multi-node Kubernetes cluster from scratch using kubeadm."
+/>
+
+## By End of Day 3
+
+You should be able to:
+
+- Explain **why** Docker alone is not sufficient for production workloads
+- Describe every component of Kubernetes and **why it exists**
+- Understand how the control plane and worker nodes collaborate
+- Set up a working Kubernetes cluster with kubeadm
+- Run `kubectl get nodes` and see your cluster ready for deployments
+
+Tomorrow, you will deploy our application into this cluster.
