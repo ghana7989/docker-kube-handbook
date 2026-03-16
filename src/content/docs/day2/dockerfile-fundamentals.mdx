@@ -112,7 +112,7 @@ COPY package*.json ./
 
 **Why copy just the dependency files first?** This is a caching optimization. Docker caches each instruction as a layer. If your code changes but `package.json` does not, Docker reuses the cached `npm install` layer instead of reinstalling everything. This saves minutes on every build.
 
-We will explore this in depth in [Image Layers and Build Caching](/day2/image-layers/).
+We will explore this in depth in [Image Layers and Build Caching](/docker-kube-handbook/day2/image-layers/).
 
 ### RUN npm install — Install Dependencies
 
@@ -243,7 +243,7 @@ curl http://localhost:3000
 
 ## How This Connects to Our Application
 
-We will use this exact Dockerfile pattern to containerize our Node.js API in [Lab 4](/labs/lab4-containerize-backend/). The same principles apply to any language — Python uses `pip install`, Go uses `go build`, Java uses `mvn package`. The structure is always:
+We will use this exact Dockerfile pattern to containerize our Node.js API in [Lab 4](/docker-kube-handbook/labs/lab4-containerize-backend/). The same principles apply to any language — Python uses `pip install`, Go uses `go build`, Java uses `mvn package`. The structure is always:
 
 1. Start from a base image with the runtime
 2. Copy dependency manifests
