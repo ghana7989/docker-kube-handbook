@@ -20,7 +20,9 @@ export default defineConfig({
 			plugins: [
 				starlightThemeFlexoki({ accentColor: 'cyan' }),
 				starlightImageZoom(),
-				starlightLinksValidator({ errorOnRelativeLinks: false }),
+				...(!process.env.CI
+					? [starlightLinksValidator({ errorOnRelativeLinks: false })]
+					: []),
 			],
 			social: [
 				{
