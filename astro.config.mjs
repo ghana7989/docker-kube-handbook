@@ -7,6 +7,8 @@ import starlightImageZoom from 'starlight-image-zoom';
 import starlightLinksValidator from 'starlight-links-validator';
 
 export default defineConfig({
+	site: 'https://ghana7989.github.io',
+	base: '/docker-kube-handbook',
 	integrations: [
 		astroD2({
 			sketch: true,
@@ -24,7 +26,7 @@ export default defineConfig({
 				{
 					icon: 'github',
 					label: 'GitHub',
-					href: 'https://github.com/pavan/docker-kube-handbook',
+					href: 'https://github.com/ghana7989/docker-kube-handbook',
 				},
 			],
 			customCss: ['./src/styles/custom.css'],
